@@ -1,5 +1,5 @@
 ﻿DevClean
-
+1.0.0.0
 
 winexe
 C#
@@ -12,7 +12,7 @@ TRACE;DEBUG;NET;NET10_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_O
 D:\DevClean\App.xaml
 3362003460
 
-221052710995
+25929568746
 206248478787
 MainWindow.xaml;PermanentDeleteWindow.xaml;QuarantineWindow.xaml;
 

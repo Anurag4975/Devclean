@@ -1,8 +1,9 @@
+
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+
 using DevClean.AI;
 using DevClean.Candidates;
 using DevClean.Cleanup;
@@ -24,35 +25,51 @@ public partial class MainWindow : Window
         _visibleCandidates = [];
 
     private CancellationTokenSource? _cancellationSource;
-    
+
     private bool _updatingSelection;
 
+
+    // =========================================================
+    // CONSTRUCTOR
+    // =========================================================
+
     public MainWindow()
-{
-    InitializeComponent();
+    {
+        InitializeComponent();
 
-    var workArea = SystemParameters.WorkArea;
+        var workArea = SystemParameters.WorkArea;
 
-    Left = workArea.Left +
-           (workArea.Width - Width) / 2;
+        Left =
+            workArea.Left +
+            (workArea.Width - Width) / 2;
 
-    Top = workArea.Top +
-          (workArea.Height - Height) / 2;
+        Top =
+            workArea.Top +
+            (workArea.Height - Height) / 2;
 
-    _scanner = new DiskScanner();
-    _analyzer = new LocalSafetyAnalyzer();
-    _candidateDetector = new CandidateDetector();
-            new CandidateDetector();
+        _scanner = new DiskScanner();
+        _analyzer = new LocalSafetyAnalyzer();
+        _candidateDetector = new CandidateDetector();
 
         LoadDrives();
 
-        CandidateList.ItemsSource =
-            _visibleCandidates;
+        // -----------------------------------------------------
+        // CATEGORY FILTER
+        // -----------------------------------------------------
+
+        CategoryFilter.Items.Clear();
 
         CategoryFilter.Items.Add(
             "All categories");
 
         CategoryFilter.SelectedIndex = 0;
+
+
+        // -----------------------------------------------------
+        // SAFETY FILTER
+        // -----------------------------------------------------
+
+        SafetyFilter.Items.Clear();
 
         SafetyFilter.Items.Add(
             "All safety levels");
@@ -63,7 +80,28 @@ public partial class MainWindow : Window
         SafetyFilter.Items.Add("Do not delete");
 
         SafetyFilter.SelectedIndex = 0;
+
+
+        // -----------------------------------------------------
+        // INITIAL LIST SOURCES
+        // -----------------------------------------------------
+
+        CandidateList.ItemsSource =
+            _visibleCandidates;
+
+        FolderList.ItemsSource = null;
+
+        FolderList.Visibility =
+            Visibility.Collapsed;
+
+        CandidateList.Visibility =
+            Visibility.Visible;
     }
+
+
+    // =========================================================
+    // DRIVE LOADING
+    // =========================================================
 
     private void LoadDrives()
     {
@@ -94,160 +132,211 @@ public partial class MainWindow : Window
         }
     }
 
-  private async void ScanButton_Click(
-    object sender,
-    RoutedEventArgs e)
-{
-    if (DriveComboBox.SelectedItem
-        is not DriveItem selected)
+
+    // =========================================================
+    // SCAN
+    // =========================================================
+
+    private async void ScanButton_Click(
+        object sender,
+        RoutedEventArgs e)
     {
-        MessageBox.Show(
-            "Please select a drive.",
-            "DevClean");
+        if (DriveComboBox.SelectedItem
+            is not DriveItem selected)
+        {
+            MessageBox.Show(
+                "Please select a drive.",
+                "DevClean");
 
-        return;
-    }
+            return;
+        }
 
-    _cancellationSource?.Cancel();
+        _cancellationSource?.Cancel();
 
-    _cancellationSource =
-        new CancellationTokenSource();
+        _cancellationSource =
+            new CancellationTokenSource();
 
-    ScanButton.IsEnabled = false;
-    QuarantineButton.IsEnabled = false;
+        ScanButton.IsEnabled = false;
+        QuarantineButton.IsEnabled = false;
+        PermanentDeleteButton.IsEnabled = false;
 
-    StatusText.Text = "Scanning...";
-    ProgressText.Text =
-        "Scanning every file on the drive...";
-
-    ScanProgressBar.IsIndeterminate = true;
-
-    _allCandidates.Clear();
-    _visibleCandidates.Clear();
-
-    FilesScannedText.Text = "0";
-    CandidatesText.Text = "0";
-
-    try
-    {
-        List<FileItem> files =
-            await _scanner.ScanFilesAsync(
-                selected.Drive.RootDirectory.FullName,
-                _cancellationSource.Token);
-
-        FilesScannedText.Text =
-            files.Count.ToString("N0");
+        StatusText.Text =
+            "Scanning...";
 
         ProgressText.Text =
-            "Building file inventory...";
-
-        // -------------------------------------------------
-        // EVERY FILE
-        // -------------------------------------------------
-
-        List<CleanupCandidate> fileCandidates =
-            _candidateDetector.FindCandidates(
-                files);
-
-        // -------------------------------------------------
-        // SMART FOLDER TARGETS
-        // -------------------------------------------------
-
-     List<CleanupCandidate> folderCandidates =
-    _candidateDetector.FindFolderCandidates(
-        files);
-
-
-
-        // -------------------------------------------------
-        // COMBINE
-        // -------------------------------------------------
-
-        List<CleanupCandidate> candidates =
-            fileCandidates
-                .Concat(folderCandidates)
-                .OrderByDescending(
-                    x => x.PriorityScore)
-                .ThenByDescending(
-                    x => x.Size)
-                .ToList();
-
-        CandidatesText.Text =
-            candidates.Count.ToString("N0");
-
-        ProgressText.Text =
-            $"Analyzing {candidates.Count:N0} items...";
-
-        // -------------------------------------------------
-        // IMPORTANT:
-        //
-        // No artificial 1,000 item limit.
-        // Every file gets analyzed.
-        // -------------------------------------------------
-
-        foreach (CleanupCandidate candidate
-         in candidates)
-{
-    _cancellationSource.Token
-        .ThrowIfCancellationRequested();
-
-    SafetyAnalysis analysis =
-        await _analyzer.AnalyzeAsync(
-            candidate.File,
-            _cancellationSource.Token);
-
-    // Show every folder.
-    // Safety will control whether it can be deleted.
-    _allCandidates.Add(
-        new CandidateViewModel(
-            candidate,
-            analysis));
-}
-        PopulateCategoryFilter();
-
-        ApplyFilters();
-
-        StatusText.Text = "Ready";
-
-        ProgressText.Text =
-            $"Scan complete • " +
-            $"{files.Count:N0} files scanned • " +
-            $"{_allCandidates.Count:N0} results";
+            "Scanning every file on the drive...";
 
         ScanProgressBar.IsIndeterminate =
-            false;
+            true;
 
-        ScanProgressBar.Value = 100;
+        _allCandidates.Clear();
+        _visibleCandidates.Clear();
+
+        FilesScannedText.Text = "0";
+        CandidatesText.Text = "0";
+
+        SelectedText.Text = "0 B";
+
+        SelectedInfoText.Text =
+            "Select files or folders to clean.";
+
+        try
+        {
+            // -------------------------------------------------
+            // SCAN FILES
+            // -------------------------------------------------
+
+            List<FileItem> files =
+                await _scanner.ScanFilesAsync(
+                    selected.Drive.RootDirectory.FullName,
+                    _cancellationSource.Token);
+
+            FilesScannedText.Text =
+                files.Count.ToString("N0");
+
+
+            // -------------------------------------------------
+            // BUILD FILE CANDIDATES
+            // -------------------------------------------------
+
+            ProgressText.Text =
+                "Building file inventory...";
+
+            List<CleanupCandidate> fileCandidates =
+                _candidateDetector.FindCandidates(
+                    files);
+
+
+            // -------------------------------------------------
+            // BUILD FOLDER CANDIDATES
+            // -------------------------------------------------
+
+            ProgressText.Text =
+                "Building folder inventory...";
+
+            List<CleanupCandidate> folderCandidates =
+                _candidateDetector.FindFolderCandidates(
+                    files);
+
+
+            // -------------------------------------------------
+            // COMBINE FILES + FOLDERS
+            // -------------------------------------------------
+
+            List<CleanupCandidate> candidates =
+                fileCandidates
+                    .Concat(folderCandidates)
+                    .OrderByDescending(
+                        x => x.PriorityScore)
+                    .ThenByDescending(
+                        x => x.Size)
+                    .ToList();
+
+            CandidatesText.Text =
+                candidates.Count.ToString("N0");
+
+            ProgressText.Text =
+                $"Analyzing {candidates.Count:N0} items...";
+
+
+            // -------------------------------------------------
+            // ANALYZE EVERY ITEM
+            // -------------------------------------------------
+
+            foreach (CleanupCandidate candidate
+                     in candidates)
+            {
+                _cancellationSource.Token
+                    .ThrowIfCancellationRequested();
+
+                SafetyAnalysis analysis =
+                    await _analyzer.AnalyzeAsync(
+                        candidate.File,
+                        _cancellationSource.Token);
+
+                _allCandidates.Add(
+                    new CandidateViewModel(
+                        candidate,
+                        analysis));
+            }
+
+
+            // -------------------------------------------------
+            // CATEGORY FILTER
+            // -------------------------------------------------
+
+            PopulateCategoryFilter();
+
+
+            // -------------------------------------------------
+            // APPLY FILTERS
+            // -------------------------------------------------
+
+            ApplyFilters();
+
+
+            // -------------------------------------------------
+            // COMPLETE
+            // -------------------------------------------------
+
+            StatusText.Text =
+                "Ready";
+
+            ProgressText.Text =
+                $"Scan complete • " +
+                $"{files.Count:N0} files scanned • " +
+                $"{_allCandidates.Count:N0} results";
+
+            ScanProgressBar.IsIndeterminate =
+                false;
+
+            ScanProgressBar.Value =
+                100;
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText.Text =
+                "Cancelled";
+
+            ProgressText.Text =
+                "Scan cancelled.";
+
+            ScanProgressBar.IsIndeterminate =
+                false;
+
+            ScanProgressBar.Value =
+                0;
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text =
+                "Error";
+
+            ProgressText.Text =
+                "Scan failed.";
+
+            ScanProgressBar.IsIndeterminate =
+                false;
+
+            MessageBox.Show(
+                ex.Message,
+                "DevClean scan error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            ScanButton.IsEnabled = true;
+            QuarantineButton.IsEnabled = true;
+            PermanentDeleteButton.IsEnabled = true;
+        }
     }
-    catch (OperationCanceledException)
-    {
-        StatusText.Text = "Cancelled";
 
-        ProgressText.Text =
-            "Scan cancelled.";
 
-        ScanProgressBar.IsIndeterminate =
-            false;
-    }
-    catch (Exception ex)
-    {
-        StatusText.Text = "Error";
+    // =========================================================
+    // CATEGORY FILTER
+    // =========================================================
 
-        MessageBox.Show(
-            ex.Message,
-            "DevClean scan error",
-            MessageBoxButton.OK,
-            MessageBoxImage.Error);
-
-        ScanProgressBar.IsIndeterminate =
-            false;
-    }
-    finally
-    {
-        ScanButton.IsEnabled = true;
-        QuarantineButton.IsEnabled = true;
-    }
-}
     private void PopulateCategoryFilter()
     {
         string? current =
@@ -284,8 +373,14 @@ public partial class MainWindow : Window
             }
         }
 
-        CategoryFilter.SelectedIndex = index;
+        CategoryFilter.SelectedIndex =
+            index;
     }
+
+
+    // =========================================================
+    // FILTERS
+    // =========================================================
 
     private void ApplyFilters()
     {
@@ -307,57 +402,155 @@ public partial class MainWindow : Window
         IEnumerable<CandidateViewModel> query =
             _allCandidates;
 
-        if (category != "All categories")
-        {
-            query =
-                query.Where(
-                    x => x.Category == category);
-        }
 
-        if (type == "Files")
-        {
-            query =
-                query.Where(
-                    x => !x.Candidate.IsFolder);
-        }
-        else if (type == "Folders")
+        // =====================================================
+        // FOLDER MODE
+        //
+        // Folder inventory is intentionally simple.
+        //
+        // IMPORTANT:
+        // Category and Safety filters are ignored here.
+        //
+        // This means:
+        // - hidden folders remain visible
+        // - protected folders remain visible
+        // - empty folders remain visible
+        // - folders are not filtered by cleanup category
+        // - folders are not filtered by AI safety level
+        // =====================================================
+
+        if (type == "Folders")
         {
             query =
                 query.Where(
                     x => x.Candidate.IsFolder);
         }
-
-        if (safety != "All safety levels")
+        else
         {
-            SafetyLevel selectedLevel =
-                safety switch
-                {
-                    "Safe" => SafetyLevel.Safe,
-                    "Review" => SafetyLevel.Review,
-                    "Caution" => SafetyLevel.Caution,
-                    "Do not delete" =>
-                        SafetyLevel.DoNotDelete,
-                    _ => SafetyLevel.Review
-                };
+            // =================================================
+            // FILE MODE
+            // =================================================
 
-            query =
-                query.Where(
-                    x => x.Analysis.Level ==
-                         selectedLevel);
+            if (type == "Files")
+            {
+                query =
+                    query.Where(
+                        x => !x.Candidate.IsFolder);
+            }
+
+
+            // =================================================
+            // CATEGORY
+            // =================================================
+
+            if (category != "All categories")
+            {
+                query =
+                    query.Where(
+                        x => x.Category == category);
+            }
+
+
+            // =================================================
+            // SAFETY
+            // =================================================
+
+            if (safety != "All safety levels")
+            {
+                SafetyLevel selectedLevel =
+                    safety switch
+                    {
+                        "Safe" =>
+                            SafetyLevel.Safe,
+
+                        "Review" =>
+                            SafetyLevel.Review,
+
+                        "Caution" =>
+                            SafetyLevel.Caution,
+
+                        "Do not delete" =>
+                            SafetyLevel.DoNotDelete,
+
+                        _ =>
+                            SafetyLevel.Review
+                    };
+
+                query =
+                    query.Where(
+                        x =>
+                            x.Analysis.Level ==
+                            selectedLevel);
+            }
         }
+
+
+        // =====================================================
+        // POPULATE VISIBLE RESULTS
+        // =====================================================
 
         foreach (CandidateViewModel candidate
                  in query
                      .OrderByDescending(
-                         x => x.Size))
+                         x => x.Size)
+                     .ThenBy(
+                         x => x.Path))
         {
             _visibleCandidates.Add(
                 candidate);
         }
 
+
+        // =====================================================
+        // SWITCH LISTS
+        // =====================================================
+
+        bool foldersOnly =
+            type == "Folders";
+
+
+        if (foldersOnly)
+        {
+            CandidateList.Visibility =
+                Visibility.Collapsed;
+
+            FolderList.Visibility =
+                Visibility.Visible;
+
+            CandidateList.ItemsSource =
+                null;
+
+            FolderList.ItemsSource =
+                _visibleCandidates;
+        }
+        else
+        {
+            CandidateList.Visibility =
+                Visibility.Visible;
+
+            FolderList.Visibility =
+                Visibility.Collapsed;
+
+            FolderList.ItemsSource =
+                null;
+
+            CandidateList.ItemsSource =
+                _visibleCandidates;
+        }
+
+
+        // =====================================================
+        // RESULT COUNT
+        // =====================================================
+
         ResultCountText.Text =
             $"{_visibleCandidates.Count:N0} results";
     }
+
+
+    // =========================================================
+    // FILTER EVENT
+    // =========================================================
 
     private void Filter_SelectionChanged(
         object sender,
@@ -371,71 +564,131 @@ public partial class MainWindow : Window
         ApplyFilters();
     }
 
+
+    // =========================================================
+    // SELECT ALL
+    // =========================================================
+
     private void SelectAllCheckBox_Checked(
         object sender,
         RoutedEventArgs e)
     {
+        if (_updatingSelection)
+        {
+            return;
+        }
+
         _updatingSelection = true;
 
-        foreach (CandidateViewModel candidate
-                 in _allCandidates)
+        try
         {
-            candidate.IsSelected = false;
-        }
+            // -------------------------------------------------
+            // CLEAR EXISTING SELECTION
+            // -------------------------------------------------
 
-        IEnumerable<CandidateViewModel> selectable =
-            _visibleCandidates
-                .Where(x =>
-                    x.Analysis.Level !=
-                    SafetyLevel.DoNotDelete)
-                .OrderBy(x => NormalizePath(x.Path).Length);
-
-        List<string> selectedPaths = [];
-
-        foreach (CandidateViewModel candidate
-                 in selectable)
-        {
-            string path =
-                NormalizePath(candidate.Path);
-
-            bool alreadyCovered =
-                selectedPaths.Any(
-                    parent =>
-                        IsSameOrDescendantPath(
-                            path,
-                            parent));
-
-            if (alreadyCovered)
+            foreach (CandidateViewModel candidate
+                     in _allCandidates)
             {
-                continue;
+                candidate.IsSelected =
+                    false;
             }
 
-            candidate.IsSelected = true;
 
-            selectedPaths.Add(path);
+            // -------------------------------------------------
+            // PROCESS SHORTEST PATHS FIRST
+            //
+            // This allows a parent folder to own its
+            // descendants without double counting.
+            // -------------------------------------------------
+
+            List<CandidateViewModel> selectable =
+                _visibleCandidates
+                    .Where(
+                        x =>
+                            x.Analysis.Level !=
+                            SafetyLevel.DoNotDelete)
+                    .OrderBy(
+                        x =>
+                            NormalizePath(
+                                x.Path).Length)
+                    .ToList();
+
+            List<string> selectedPaths = [];
+
+
+            foreach (CandidateViewModel candidate
+                     in selectable)
+            {
+                string path =
+                    NormalizePath(
+                        candidate.Path);
+
+                bool alreadyCovered =
+                    selectedPaths.Any(
+                        parent =>
+                            IsSameOrDescendantPath(
+                                path,
+                                parent));
+
+                if (alreadyCovered)
+                {
+                    continue;
+                }
+
+                candidate.IsSelected =
+                    true;
+
+                selectedPaths.Add(
+                    path);
+            }
         }
-
-        _updatingSelection = false;
+        finally
+        {
+            _updatingSelection =
+                false;
+        }
 
         UpdateSelectionDisplay();
     }
+
+
+    // =========================================================
+    // UNSELECT ALL
+    // =========================================================
 
     private void SelectAllCheckBox_Unchecked(
         object sender,
         RoutedEventArgs e)
     {
-        _updatingSelection = true;
-
-        foreach (CandidateViewModel candidate
-                 in _allCandidates)
+        if (_updatingSelection)
         {
-            candidate.IsSelected = false;
+            return;
         }
 
-        _updatingSelection = false;
+        _updatingSelection = true;
+
+        try
+        {
+            foreach (CandidateViewModel candidate
+                     in _allCandidates)
+            {
+                candidate.IsSelected =
+                    false;
+            }
+        }
+        finally
+        {
+            _updatingSelection =
+                false;
+        }
 
         UpdateSelectionDisplay();
     }
+
+
+    // =========================================================
+    // INDIVIDUAL CHECKBOX
+    // =========================================================
 
     private void CandidateCheckBox_Changed(
         object sender,
@@ -446,50 +699,100 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (sender is CheckBox checkBox &&
-            checkBox.DataContext is CandidateViewModel candidate)
+        if (sender is not CheckBox checkBox)
         {
-            if (candidate.Analysis.Level ==
-                SafetyLevel.DoNotDelete)
-            {
-                _updatingSelection = true;
+            return;
+        }
 
-                candidate.IsSelected = false;
+        if (checkBox.DataContext
+            is not CandidateViewModel candidate)
+        {
+            return;
+        }
 
-                _updatingSelection = false;
 
-                UpdateSelectionDisplay();
+        // -----------------------------------------------------
+        // NEVER ALLOW DO NOT DELETE
+        // -----------------------------------------------------
 
-                return;
-            }
-
+        if (candidate.Analysis.Level ==
+            SafetyLevel.DoNotDelete)
+        {
             _updatingSelection = true;
 
-            if (candidate.IsSelected)
+            try
             {
-                ApplySmartSelection(candidate);
+                candidate.IsSelected =
+                    false;
+
+                checkBox.IsChecked =
+                    false;
+            }
+            finally
+            {
+                _updatingSelection =
+                    false;
             }
 
-            _updatingSelection = false;
+            UpdateSelectionDisplay();
+
+            return;
+        }
+
+
+        // -----------------------------------------------------
+        // SMART SELECTION
+        // -----------------------------------------------------
+
+        _updatingSelection = true;
+
+        try
+        {
+            if (candidate.IsSelected)
+            {
+                ApplySmartSelection(
+                    candidate);
+            }
+        }
+        finally
+        {
+            _updatingSelection =
+                false;
         }
 
         UpdateSelectionDisplay();
     }
 
+
+    // =========================================================
+    // SMART PARENT / CHILD SELECTION
+    // =========================================================
+
     private void ApplySmartSelection(
         CandidateViewModel selected)
     {
         string selectedPath =
-            NormalizePath(selected.Path);
+            NormalizePath(
+                selected.Path);
+
+
+        // =====================================================
+        // FOLDER SELECTED
+        //
+        // Selecting a folder means selecting the entire
+        // folder tree.
+        //
+        // Therefore remove selected descendants.
+        // =====================================================
 
         if (selected.Candidate.IsFolder)
         {
-            // A selected folder owns everything underneath it.
-            // Deselect all selected descendants.
             foreach (CandidateViewModel candidate
                      in _allCandidates)
             {
-                if (ReferenceEquals(candidate, selected))
+                if (ReferenceEquals(
+                        candidate,
+                        selected))
                 {
                     continue;
                 }
@@ -503,44 +806,64 @@ public partial class MainWindow : Window
                         candidate.Path,
                         selectedPath))
                 {
-                    candidate.IsSelected = false;
+                    candidate.IsSelected =
+                        false;
                 }
             }
 
             return;
         }
 
+
+        // =====================================================
+        // FILE SELECTED
+        //
         // A file cannot coexist with a selected parent folder.
+        // =====================================================
+
         foreach (CandidateViewModel candidate
                  in _allCandidates)
         {
-            if (!candidate.IsSelected ||
-                !candidate.Candidate.IsFolder)
+            if (!candidate.IsSelected)
+            {
+                continue;
+            }
+
+            if (!candidate.Candidate.IsFolder)
             {
                 continue;
             }
 
             string folderPath =
-                NormalizePath(candidate.Path);
+                NormalizePath(
+                    candidate.Path);
 
             if (IsSameOrDescendantPath(
                     selectedPath,
                     folderPath))
             {
-                candidate.IsSelected = false;
+                candidate.IsSelected =
+                    false;
             }
         }
     }
+
+
+    // =========================================================
+    // PATH COMPARISON
+    // =========================================================
 
     private static bool IsSameOrDescendantPath(
         string childPath,
         string parentPath)
     {
         string child =
-            NormalizePath(childPath);
+            NormalizePath(
+                childPath);
 
         string parent =
-            NormalizePath(parentPath);
+            NormalizePath(
+                parentPath);
 
         if (string.Equals(
                 child,
@@ -551,12 +874,18 @@ public partial class MainWindow : Window
         }
 
         string parentWithSeparator =
-            parent + Path.DirectorySeparatorChar;
+            parent +
+            Path.DirectorySeparatorChar;
 
         return child.StartsWith(
             parentWithSeparator,
             StringComparison.OrdinalIgnoreCase);
     }
+
+
+    // =========================================================
+    // NORMALIZE PATH
+    // =========================================================
 
     private static string NormalizePath(
         string path)
@@ -571,41 +900,101 @@ public partial class MainWindow : Window
         }
         catch
         {
-            return path
-                .TrimEnd(
-                    Path.DirectorySeparatorChar,
-                    Path.AltDirectorySeparatorChar);
+            return path.TrimEnd(
+                Path.DirectorySeparatorChar,
+                Path.AltDirectorySeparatorChar);
         }
     }
+
+
+    // =========================================================
+    // LIST SELECTION
+    // =========================================================
 
     private void CandidateList_SelectionChanged(
         object sender,
         SelectionChangedEventArgs e)
     {
-        if (CandidateList.SelectedItem
-            is CandidateViewModel candidate)
+        CandidateViewModel? candidate =
+            null;
+
+        if (sender is ListView listView &&
+            listView.SelectedItem
+                is CandidateViewModel selected)
+        {
+            candidate =
+                selected;
+        }
+
+        if (candidate == null)
+        {
+            return;
+        }
+
+
+        // Folder candidates don't necessarily have
+        // meaningful analysis reasons.
+        if (candidate.Candidate.IsFolder)
         {
             StatusText.Text =
-                candidate.Reason;
+                "Folder";
 
             ProgressText.Text =
-                $"{candidate.Explanation} " +
-                $"Last modified: " +
-                $"{candidate.LastModifiedDisplay} • " +
-                $"{candidate.AgeDisplay}";
+                $"{candidate.Path} • " +
+                $"{candidate.SizeDisplay}";
+
+            return;
         }
+
+
+        // Normal file information.
+
+        StatusText.Text =
+            candidate.Reason;
+
+        ProgressText.Text =
+            $"{candidate.Explanation} " +
+            $"Last modified: " +
+            $"{candidate.LastModifiedDisplay} • " +
+            $"{candidate.AgeDisplay}";
     }
+
+
+    // =========================================================
+    // OPEN LOCATION
+    // =========================================================
 
     private void OpenLocationButton_Click(
         object sender,
         RoutedEventArgs e)
     {
+        // -----------------------------------------------------
+        // NORMAL FILE LIST
+        // -----------------------------------------------------
+
         if (CandidateList.SelectedItem
             is CandidateViewModel candidate)
         {
             candidate.OpenLocation();
             return;
         }
+
+
+        // -----------------------------------------------------
+        // FOLDER LIST
+        // -----------------------------------------------------
+
+        if (FolderList.SelectedItem
+            is CandidateViewModel folder)
+        {
+            folder.OpenLocation();
+            return;
+        }
+
+
+        // -----------------------------------------------------
+        // FALLBACK TO SELECTED CHECKBOX ITEM
+        // -----------------------------------------------------
 
         CandidateViewModel? selected =
             _allCandidates
@@ -618,10 +1007,16 @@ public partial class MainWindow : Window
             return;
         }
 
+
         MessageBox.Show(
             "Select an item first.",
             "DevClean");
     }
+
+
+    // =========================================================
+    // QUARANTINE
+    // =========================================================
 
     private async void QuarantineButton_Click(
         object sender,
@@ -633,14 +1028,17 @@ public partial class MainWindow : Window
             return;
         }
 
+
         List<CandidateViewModel>
             selectedCandidates =
                 _allCandidates
-                    .Where(x =>
-                        x.IsSelected &&
-                        x.Analysis.Level !=
-                        SafetyLevel.DoNotDelete)
+                    .Where(
+                        x =>
+                            x.IsSelected &&
+                            x.Analysis.Level !=
+                            SafetyLevel.DoNotDelete)
                     .ToList();
+
 
         if (selectedCandidates.Count == 0)
         {
@@ -650,6 +1048,7 @@ public partial class MainWindow : Window
 
             return;
         }
+
 
         long totalSize =
             selectedCandidates.Sum(
@@ -663,13 +1062,16 @@ public partial class MainWindow : Window
             selectedCandidates.Count -
             folderCount;
 
+
         string targetDescription =
-            folderCount > 0 && fileCount > 0
+            folderCount > 0 &&
+            fileCount > 0
                 ? $"{fileCount:N0} file(s) and " +
                   $"{folderCount:N0} folder(s)"
                 : folderCount > 0
                     ? $"{folderCount:N0} folder(s)"
                     : $"{fileCount:N0} file(s)";
+
 
         MessageBoxResult confirmation =
             MessageBox.Show(
@@ -680,52 +1082,98 @@ public partial class MainWindow : Window
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
+
         if (confirmation !=
             MessageBoxResult.Yes)
         {
             return;
         }
 
-        var service =
-            new QuarantineService(
-                selected.Drive.RootDirectory.FullName);
 
-        int success = 0;
-        int failed = 0;
+        QuarantineButton.IsEnabled =
+            false;
 
-        foreach (CandidateViewModel item
-                 in selectedCandidates)
+        ScanButton.IsEnabled =
+            false;
+
+
+        try
         {
-            CleanupResult result =
-                await service.QuarantineAsync(
-                    item.Candidate);
+            var service =
+                new QuarantineService(
+                    selected.Drive.RootDirectory.FullName);
 
-            if (result.Success)
+
+            int success = 0;
+            int failed = 0;
+
+            List<CandidateViewModel>
+                successfullyQuarantined = [];
+
+
+            foreach (CandidateViewModel item
+                     in selectedCandidates)
             {
-                success++;
+                CleanupResult result =
+                    await service.QuarantineAsync(
+                        item.Candidate);
+
+
+                if (result.Success)
+                {
+                    success++;
+
+                    successfullyQuarantined.Add(
+                        item);
+                }
+                else
+                {
+                    failed++;
+                }
             }
-            else
+
+
+            // -------------------------------------------------
+            // IMPORTANT:
+            //
+            // Only remove items from the UI when quarantine
+            // actually succeeded.
+            // -------------------------------------------------
+
+            foreach (CandidateViewModel item
+                     in successfullyQuarantined)
             {
-                failed++;
+                _allCandidates.Remove(
+                    item);
             }
+
+
+            ApplyFilters();
+
+            UpdateSelectionDisplay();
+
+
+            MessageBox.Show(
+                $"Cleanup finished.\n\n" +
+                $"Quarantined: {success:N0}\n" +
+                $"Failed: {failed:N0}\n" +
+                $"Space: {FormatSize(totalSize)}",
+                "DevClean");
         }
-
-        foreach (CandidateViewModel item
-                 in selectedCandidates)
+        finally
         {
-            _allCandidates.Remove(item);
+            ScanButton.IsEnabled =
+                true;
+
+            QuarantineButton.IsEnabled =
+                true;
         }
-
-        ApplyFilters();
-        UpdateSelectionDisplay();
-
-        MessageBox.Show(
-            $"Cleanup finished.\n\n" +
-            $"Quarantined: {success:N0}\n" +
-            $"Failed: {failed:N0}\n" +
-            $"Space: {FormatSize(totalSize)}",
-            "DevClean");
     }
+
+
+    // =========================================================
+    // QUARANTINE MANAGER
+    // =========================================================
 
     private void QuarantineManagerButton_Click(
         object sender,
@@ -741,28 +1189,41 @@ public partial class MainWindow : Window
             return;
         }
 
+
         var window =
             new QuarantineWindow(
                 selected.Drive.RootDirectory.FullName);
 
-        window.Owner = this;
+        window.Owner =
+            this;
 
         window.ShowDialog();
     }
+
+
+    // =========================================================
+    // SELECTION DISPLAY
+    // =========================================================
 
     private void UpdateSelectionDisplay()
     {
         long selectedSize =
             _allCandidates
-                .Where(x => x.IsSelected)
-                .Sum(x => x.Size);
+                .Where(
+                    x => x.IsSelected)
+                .Sum(
+                    x => x.Size);
+
 
         int selectedCount =
             _allCandidates.Count(
                 x => x.IsSelected);
 
+
         SelectedText.Text =
-            FormatSize(selectedSize);
+            FormatSize(
+                selectedSize);
+
 
         SelectedInfoText.Text =
             selectedCount == 0
@@ -770,6 +1231,11 @@ public partial class MainWindow : Window
                 : $"{selectedCount:N0} item(s) selected • " +
                   $"{FormatSize(selectedSize)}";
     }
+
+
+    // =========================================================
+    // SIZE FORMATTER
+    // =========================================================
 
     private static string FormatSize(
         long bytes)
@@ -783,24 +1249,41 @@ public partial class MainWindow : Window
             "TB"
         ];
 
-        double size = bytes;
-        int unit = 0;
+
+        double size =
+            bytes;
+
+        int unit =
+            0;
+
 
         while (size >= 1024 &&
                unit < units.Length - 1)
         {
-            size /= 1024;
+            size /=
+                1024;
+
             unit++;
         }
 
-        return $"{size:0.0} {units[unit]}";
+
+        return
+            $"{size:0.0} {units[unit]}";
     }
+
+
+    // =========================================================
+    // DRIVE ITEM
+    // =========================================================
 
     private class DriveItem
     {
-        public DriveInfo Drive { get; set; } = null!;
+        public DriveInfo Drive { get; set; } =
+            null!;
 
-        public string Display { get; set; } = string.Empty;
+        public string Display { get; set; } =
+            string.Empty;
+
 
         public override string ToString()
         {
@@ -809,119 +1292,181 @@ public partial class MainWindow : Window
     }
 
 
+    // =========================================================
+    // EXIT
+    // =========================================================
+
     private void ExitButton_Click(
         object sender,
         RoutedEventArgs e)
-{
-    Close();
-}
-private async void PermanentDeleteButton_Click(
-    object sender,
-    RoutedEventArgs e)
-{
-    List<CandidateViewModel> selectedCandidates =
-        _allCandidates
-            .Where(x =>
-                x.IsSelected &&
-                x.Analysis.Level !=
-                    SafetyLevel.DoNotDelete &&
-                !x.Candidate.IsFolder)
-            .ToList();
-
-    if (selectedCandidates.Count == 0)
     {
-        MessageBox.Show(
-            "Select at least one file first.\n\n" +
-            "Permanent deletion currently supports files only.",
-            "DevClean",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
-
-        return;
+        Close();
     }
 
-    var confirmationWindow =
-        new PermanentDeleteWindow(
-            selectedCandidates);
 
-    confirmationWindow.Owner = this;
+    // =========================================================
+    // PERMANENT DELETE
+    // =========================================================
 
-    bool? result =
-        confirmationWindow.ShowDialog();
-
-    if (result != true ||
-        !confirmationWindow.Confirmed)
+    private async void PermanentDeleteButton_Click(
+        object sender,
+        RoutedEventArgs e)
     {
-        return;
-    }
+        List<CandidateViewModel>
+            selectedCandidates =
+                _allCandidates
+                    .Where(
+                        x =>
+                            x.IsSelected &&
+                            x.Analysis.Level !=
+                                SafetyLevel.DoNotDelete &&
+                            !x.Candidate.IsFolder)
+                    .ToList();
 
-    PermanentDeleteButton.IsEnabled = false;
-    QuarantineButton.IsEnabled = false;
 
-    int success = 0;
-    int failed = 0;
-    long deletedBytes = 0;
+        if (selectedCandidates.Count == 0)
+        {
+            MessageBox.Show(
+                "Select at least one file first.\n\n" +
+                "Permanent deletion currently supports files only.",
+                "DevClean",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
 
-    foreach (CandidateViewModel item
-             in selectedCandidates)
-    {
+            return;
+        }
+
+
+        // -----------------------------------------------------
+        // SHOW CONFIRMATION WINDOW
+        // -----------------------------------------------------
+
+        var confirmationWindow =
+            new PermanentDeleteWindow(
+                selectedCandidates);
+
+        confirmationWindow.Owner =
+            this;
+
+
+        bool? result =
+            confirmationWindow.ShowDialog();
+
+
+        if (result != true ||
+            !confirmationWindow.Confirmed)
+        {
+            return;
+        }
+
+
+        PermanentDeleteButton.IsEnabled =
+            false;
+
+        QuarantineButton.IsEnabled =
+            false;
+
+        ScanButton.IsEnabled =
+            false;
+
+
         try
         {
-            string path = item.Path;
+            int success = 0;
+            int failed = 0;
 
-            if (!File.Exists(path))
+            long deletedBytes = 0;
+
+
+            foreach (CandidateViewModel item
+                     in selectedCandidates)
             {
-                failed++;
-                continue;
+                try
+                {
+                    string path =
+                        item.Path;
+
+
+                    if (!File.Exists(path))
+                    {
+                        failed++;
+
+                        continue;
+                    }
+
+
+                    long size =
+                        item.Size;
+
+
+                    await Task.Run(
+                        () =>
+                        {
+                            File.Delete(path);
+                        });
+
+
+                    if (!File.Exists(path))
+                    {
+                        success++;
+
+                        deletedBytes +=
+                            size;
+                    }
+                    else
+                    {
+                        failed++;
+                    }
+                }
+                catch
+                {
+                    failed++;
+                }
             }
 
-            long size = item.Size;
 
-            await Task.Run(() =>
-            {
-                File.Delete(path);
-            });
+            // -------------------------------------------------
+            // REMOVE ONLY FILES THAT ARE ACTUALLY GONE
+            // -------------------------------------------------
 
-            if (!File.Exists(path))
+            foreach (CandidateViewModel item
+                     in selectedCandidates)
             {
-                success++;
-                deletedBytes += size;
+                if (!File.Exists(
+                        item.Path))
+                {
+                    _allCandidates.Remove(
+                        item);
+                }
             }
-            else
-            {
-                failed++;
-            }
+
+
+            ApplyFilters();
+
+            UpdateSelectionDisplay();
+
+
+            MessageBox.Show(
+                $"Permanent deletion finished.\n\n" +
+                $"Deleted: {success:N0}\n" +
+                $"Failed: {failed:N0}\n" +
+                $"Space freed: {FormatSize(deletedBytes)}",
+                "DevClean",
+                MessageBoxButton.OK,
+                failed == 0
+                    ? MessageBoxImage.Information
+                    : MessageBoxImage.Warning);
         }
-        catch
+        finally
         {
-            failed++;
+            PermanentDeleteButton.IsEnabled =
+                true;
+
+            QuarantineButton.IsEnabled =
+                true;
+
+            ScanButton.IsEnabled =
+                true;
         }
     }
-
-    foreach (CandidateViewModel item
-             in selectedCandidates)
-    {
-        if (!File.Exists(item.Path))
-        {
-            _allCandidates.Remove(item);
-        }
-    }
-
-    ApplyFilters();
-    UpdateSelectionDisplay();
-
-    PermanentDeleteButton.IsEnabled = true;
-    QuarantineButton.IsEnabled = true;
-
-    MessageBox.Show(
-        $"Permanent deletion finished.\n\n" +
-        $"Deleted: {success:N0}\n" +
-        $"Failed: {failed:N0}\n" +
-        $"Space freed: {FormatSize(deletedBytes)}",
-        "DevClean",
-        MessageBoxButton.OK,
-        failed == 0
-            ? MessageBoxImage.Information
-            : MessageBoxImage.Warning);
-}
 }

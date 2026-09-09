@@ -251,6 +251,14 @@ public class CandidateDetector
 
     // ---------------------------------------------------------
     // ALL FOLDERS
+    //
+    // Every directory is returned.
+    // Hidden folders are included.
+    // Folder size = total size of files inside it and its
+    // subdirectories.
+    //
+    // We use the files already scanned by DiskScanner so we do
+    // NOT scan every folder again just to calculate its size.
     // ---------------------------------------------------------
 
     public List<CleanupCandidate> FindFolderCandidates(
@@ -273,23 +281,24 @@ public class CandidateDetector
             return [];
         }
 
-        List<string> directories = [];
+        // ---------------------------------------------------------
+        // Get EVERY folder safely.
+        //
+        // We do NOT use SearchOption.AllDirectories because one
+        // inaccessible Windows folder can otherwise stop the entire
+        // enumeration.
+        // ---------------------------------------------------------
 
-        try
-        {
-            directories =
-                Directory
-                    .EnumerateDirectories(
-                        driveRoot,
-                        "*",
-                        SearchOption.AllDirectories)
-                    .Where(path =>
-                        !IsDevCleanPath(path))
-                    .ToList();
-        }
-        catch
-        {
-        }
+        List<string> directories =
+            EnumerateDirectoriesSafe(driveRoot)
+                .Where(path => !IsDevCleanPath(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        // ---------------------------------------------------------
+        // Calculate recursive folder sizes from the files we
+        // already scanned.
+        // ---------------------------------------------------------
 
         Dictionary<string, long> folderSizes =
             new(StringComparer.OrdinalIgnoreCase);
@@ -304,6 +313,11 @@ public class CandidateDetector
                 string normalized =
                     NormalizePath(directory);
 
+                if (IsDevCleanPath(normalized))
+                {
+                    break;
+                }
+
                 if (!folderSizes.ContainsKey(normalized))
                 {
                     folderSizes[normalized] = 0;
@@ -311,31 +325,49 @@ public class CandidateDetector
 
                 folderSizes[normalized] += file.Size;
 
-                string? parent =
-                    Directory.GetParent(normalized)?.FullName;
+                string? parent;
 
-                if (string.IsNullOrWhiteSpace(parent) ||
-                    string.Equals(
-                        NormalizePath(parent),
+                try
+                {
+                    parent =
+                        Directory.GetParent(normalized)?.FullName;
+                }
+                catch
+                {
+                    break;
+                }
+
+                if (string.IsNullOrWhiteSpace(parent))
+                {
+                    break;
+                }
+
+                string normalizedParent =
+                    NormalizePath(parent);
+
+                if (string.Equals(
+                        normalizedParent,
                         normalized,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     break;
                 }
 
-                directory = parent;
+                directory = normalizedParent;
             }
         }
+
+        // ---------------------------------------------------------
+        // Create a result for EVERY folder.
+        //
+        // Protected folders remain visible.
+        // They will be blocked later by the safety system.
+        // ---------------------------------------------------------
 
         List<CleanupCandidate> candidates = [];
 
         foreach (string directory in directories)
         {
-            if (IsProtectedPath(directory))
-            {
-                continue;
-            }
-
             string path =
                 NormalizePath(directory);
 
@@ -358,24 +390,48 @@ public class CandidateDetector
                 continue;
             }
 
+            FileAttributes attributes;
+
+            try
+            {
+                attributes = directoryInfo.Attributes;
+            }
+            catch
+            {
+                attributes = FileAttributes.Normal;
+            }
+
             FileItem folderFile =
                 new()
                 {
                     Path = path,
+
                     ParentDirectory =
                         directoryInfo.Parent?.FullName
                         ?? string.Empty,
-                    Name = directoryInfo.Name,
+
+                    Name =
+                        directoryInfo.Name,
+
                     Size = size,
+
                     Extension = string.Empty,
-                    Created = GetDirectoryCreationTime(path),
-                    LastModified = GetDirectoryLastModified(path),
-                    LastAccessed = GetDirectoryLastAccessed(path),
+
+                    Created =
+                        GetDirectoryCreationTime(path),
+
+                    LastModified =
+                        GetDirectoryLastModified(path),
+
+                    LastAccessed =
+                        GetDirectoryLastAccessed(path),
+
                     IsHidden =
-                        (directoryInfo.Attributes &
+                        (attributes &
                          FileAttributes.Hidden) != 0,
+
                     IsSystem =
-                        (directoryInfo.Attributes &
+                        (attributes &
                          FileAttributes.System) != 0
                 };
 
@@ -383,11 +439,17 @@ public class CandidateDetector
                 new CleanupCandidate
                 {
                     File = folderFile,
+
                     TargetPath = path,
+
                     IsFolder = true,
+
                     Location = LocationType.Unknown,
+
                     Category = FileCategory.Unknown,
+
                     Reasons = [],
+
                     PriorityScore = 0
                 });
         }
@@ -396,6 +458,71 @@ public class CandidateDetector
             .OrderByDescending(x => x.Size)
             .ThenBy(x => x.TargetPath)
             .ToList();
+    }
+
+    // ---------------------------------------------------------
+    // SAFE DIRECTORY ENUMERATION
+    // ---------------------------------------------------------
+
+    private static IEnumerable<string> EnumerateDirectoriesSafe(
+        string root)
+    {
+        Stack<string> pending = new();
+
+        pending.Push(root);
+
+        while (pending.Count > 0)
+        {
+            string current = pending.Pop();
+
+            IEnumerable<string> subDirectories;
+
+            try
+            {
+                subDirectories =
+                    Directory.EnumerateDirectories(
+                        current);
+            }
+            catch
+            {
+                // Cannot access this folder.
+                // Continue scanning other folders.
+                continue;
+            }
+
+            foreach (string directory in subDirectories)
+            {
+                if (IsDevCleanPath(directory))
+                {
+                    continue;
+                }
+
+                DirectoryInfo info;
+
+                try
+                {
+                    info = new DirectoryInfo(directory);
+
+                    // Do not follow junctions/symbolic links.
+                    if ((info.Attributes &
+                         FileAttributes.ReparsePoint) != 0)
+                    {
+                        continue;
+                    }
+                }
+                catch
+                {
+                    continue;
+                }
+
+                // IMPORTANT:
+                // Every accessible folder is returned,
+                // including hidden/system/protected folders.
+                yield return directory;
+
+                pending.Push(directory);
+            }
+        }
     }
 
     // ---------------------------------------------------------

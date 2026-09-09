@@ -6,11 +6,12 @@
         Height="850"
         MinWidth="1000"
         MinHeight="600"
-        WindowStartupLocation="manual"
+        WindowStartupLocation="Manual"
         WindowState="Normal"
         ResizeMode="CanResize"
         WindowStyle="SingleBorderWindow"
         Background="#F5F6F8">
+
     <Grid Margin="24">
 
         <Grid.RowDefinitions>
@@ -21,7 +22,10 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
+        <!-- ================================================= -->
+        <!-- HEADER -->
+        <!-- ================================================= -->
+
         <Grid Grid.Row="0"
               Margin="0,0,0,20">
 
@@ -48,19 +52,23 @@
                         Content="🔍 Scan"
                         Click="ScanButton_Click"
                         Width="120"
-                        Height="38"/>
+                        Height="38"
+                        Margin="8,0,0,0"/>
 
                 <Button Content="Quarantine Manager"
                         Click="QuarantineManagerButton_Click"
-                        Height="38"/>
-
-              
+                        Height="38"
+                        Margin="8,0,0,0"/>
 
             </StackPanel>
 
         </Grid>
 
-        <!-- Summary -->
+
+        <!-- ================================================= -->
+        <!-- SUMMARY -->
+        <!-- ================================================= -->
+
         <Grid Grid.Row="1"
               Margin="0,0,0,16">
 
@@ -71,6 +79,8 @@
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
 
+            <!-- Files scanned -->
+
             <Border Grid.Column="0"
                     Background="White"
                     CornerRadius="8"
@@ -78,6 +88,7 @@
                     Margin="0,0,8,0">
 
                 <StackPanel>
+
                     <TextBlock Text="Files scanned"
                                Foreground="#666"/>
 
@@ -86,9 +97,13 @@
                                FontSize="24"
                                FontWeight="Bold"
                                Margin="0,6,0,0"/>
+
                 </StackPanel>
 
             </Border>
+
+
+            <!-- Candidates -->
 
             <Border Grid.Column="1"
                     Background="White"
@@ -97,6 +112,7 @@
                     Margin="8,0">
 
                 <StackPanel>
+
                     <TextBlock Text="Candidates"
                                Foreground="#666"/>
 
@@ -105,9 +121,13 @@
                                FontSize="24"
                                FontWeight="Bold"
                                Margin="0,6,0,0"/>
+
                 </StackPanel>
 
             </Border>
+
+
+            <!-- Selected -->
 
             <Border Grid.Column="2"
                     Background="White"
@@ -116,6 +136,7 @@
                     Margin="8,0">
 
                 <StackPanel>
+
                     <TextBlock Text="Selected"
                                Foreground="#666"/>
 
@@ -124,9 +145,13 @@
                                FontSize="24"
                                FontWeight="Bold"
                                Margin="0,6,0,0"/>
+
                 </StackPanel>
 
             </Border>
+
+
+            <!-- Status -->
 
             <Border Grid.Column="3"
                     Background="White"
@@ -135,6 +160,7 @@
                     Margin="8,0,0,0">
 
                 <StackPanel>
+
                     <TextBlock Text="Status"
                                Foreground="#666"/>
 
@@ -143,13 +169,18 @@
                                FontSize="20"
                                FontWeight="Bold"
                                Margin="0,6,0,0"/>
+
                 </StackPanel>
 
             </Border>
 
         </Grid>
 
-        <!-- Progress -->
+
+        <!-- ================================================= -->
+        <!-- PROGRESS -->
+        <!-- ================================================= -->
+
         <StackPanel Grid.Row="2"
                     Margin="0,0,0,16">
 
@@ -164,7 +195,11 @@
 
         </StackPanel>
 
-        <!-- Filters and list -->
+
+        <!-- ================================================= -->
+        <!-- FILTERS + LIST -->
+        <!-- ================================================= -->
+
         <Grid Grid.Row="3">
 
             <Grid.RowDefinitions>
@@ -172,11 +207,17 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Filters -->
+
+            <!-- ================================================= -->
+            <!-- FILTERS -->
+            <!-- ================================================= -->
+
             <Grid Grid.Row="0"
                   Margin="0,0,0,10">
 
                 <StackPanel Orientation="Horizontal">
+
+                    <!-- TYPE -->
 
                     <TextBlock Text="Type:"
                                VerticalAlignment="Center"
@@ -193,6 +234,9 @@
 
                     </ComboBox>
 
+
+                    <!-- CATEGORY -->
+
                     <TextBlock Text="Category:"
                                VerticalAlignment="Center"
                                Margin="20,0,6,0"/>
@@ -201,6 +245,9 @@
                               Width="190"
                               SelectionChanged="Filter_SelectionChanged"/>
 
+
+                    <!-- SAFETY -->
+
                     <TextBlock Text="Safety:"
                                VerticalAlignment="Center"
                                Margin="20,0,6,0"/>
@@ -208,6 +255,9 @@
                     <ComboBox x:Name="SafetyFilter"
                               Width="170"
                               SelectionChanged="Filter_SelectionChanged"/>
+
+
+                    <!-- RESULT COUNT -->
 
                     <TextBlock x:Name="ResultCountText"
                                Text="0 results"
@@ -219,118 +269,243 @@
 
             </Grid>
 
-            <!-- Candidate list -->
+
+            <!-- ================================================= -->
+            <!-- LIST CONTAINER -->
+            <!-- ================================================= -->
+
             <Border Grid.Row="1"
                     Background="White"
                     CornerRadius="8"
                     Padding="8">
 
-                <ListView x:Name="CandidateList"
-                          SelectionChanged="CandidateList_SelectionChanged">
+                <Grid>
 
-                    <ListView.View>
 
-                        <GridView>
+                    <!-- ================================================= -->
+                    <!-- NORMAL FILE / ALL VIEW -->
+                    <!-- ================================================= -->
 
-                            <!-- Select -->
-                            <GridViewColumn Width="45">
+                    <ListView x:Name="CandidateList"
+                              Visibility="Visible"
+                              SelectionChanged="CandidateList_SelectionChanged">
 
-                                <GridViewColumn.Header>
+                        <ListView.View>
 
-                                    <CheckBox x:Name="SelectAllCheckBox"
-                                              Checked="SelectAllCheckBox_Checked"
-                                              Unchecked="SelectAllCheckBox_Unchecked"/>
+                            <GridView>
 
-                                </GridViewColumn.Header>
+                                <!-- SELECT -->
 
-                                <GridViewColumn.CellTemplate>
+                                <GridViewColumn Width="45">
 
-                                    <DataTemplate>
+                                    <GridViewColumn.Header>
 
-                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                  Checked="CandidateCheckBox_Changed"
-                                                  Unchecked="CandidateCheckBox_Changed"/>
+                                        <CheckBox x:Name="SelectAllCheckBox"
+                                                  Checked="SelectAllCheckBox_Checked"
+                                                  Unchecked="SelectAllCheckBox_Unchecked"/>
 
-                                    </DataTemplate>
+                                    </GridViewColumn.Header>
 
-                                </GridViewColumn.CellTemplate>
+                                    <GridViewColumn.CellTemplate>
 
-                            </GridViewColumn>
+                                        <DataTemplate>
 
-                            <!-- Type -->
-                            <GridViewColumn Header="Type"
-                                            Width="75"
-                                            DisplayMemberBinding="{Binding TargetType}"/>
+                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                      Checked="CandidateCheckBox_Changed"
+                                                      Unchecked="CandidateCheckBox_Changed"/>
 
-                            <!-- Size -->
-                            <GridViewColumn Header="Size"
-                                            Width="95"
-                                            DisplayMemberBinding="{Binding SizeDisplay}"/>
+                                        </DataTemplate>
 
-                            <!-- Age -->
-                            <GridViewColumn Header="Age"
-                                            Width="120"
-                                            DisplayMemberBinding="{Binding AgeDisplay}"/>
+                                    </GridViewColumn.CellTemplate>
 
-                            <!-- Last modified -->
-                            <GridViewColumn Header="Last modified"
-                                            Width="135"
-                                            DisplayMemberBinding="{Binding LastModifiedDisplay}"/>
+                                </GridViewColumn>
 
-                            <!-- File / Folder -->
-                            <GridViewColumn Header="File / Folder"
-                                            Width="280"
-                                            DisplayMemberBinding="{Binding FileName}"/>
 
-                            <!-- Category -->
-                            <GridViewColumn Header="Category"
-                                            Width="170"
-                                            DisplayMemberBinding="{Binding Category}"/>
+                                <!-- TYPE -->
 
-                            <!-- Location -->
-                            <GridViewColumn Header="Location"
-                                            Width="170"
-                                            DisplayMemberBinding="{Binding Location}"/>
+                                <GridViewColumn Header="Type"
+                                                Width="75"
+                                                DisplayMemberBinding="{Binding TargetType}"/>
 
-                            <!-- Safety -->
-                            <GridViewColumn Header="Safety"
-                                            Width="140">
 
-                                <GridViewColumn.CellTemplate>
+                                <!-- SIZE -->
 
-                                    <DataTemplate>
+                                <GridViewColumn Header="Size"
+                                                Width="95"
+                                                DisplayMemberBinding="{Binding SizeDisplay}"/>
 
-                                        <StackPanel Orientation="Horizontal">
 
-                                            <TextBlock Text="{Binding SafetyIcon, Mode=OneWay}"
-                                                       Margin="0,0,5,0"/>
+                                <!-- AGE -->
 
-                                            <TextBlock Text="{Binding Safety, Mode=OneWay}"/>
+                                <GridViewColumn Header="Age"
+                                                Width="120"
+                                                DisplayMemberBinding="{Binding AgeDisplay}"/>
 
-                                        </StackPanel>
 
-                                    </DataTemplate>
+                                <!-- LAST MODIFIED -->
 
-                                </GridViewColumn.CellTemplate>
+                                <GridViewColumn Header="Last modified"
+                                                Width="135"
+                                                DisplayMemberBinding="{Binding LastModifiedDisplay}"/>
 
-                            </GridViewColumn>
 
-                            <!-- Reason -->
-                            <GridViewColumn Header="Reason"
-                                            Width="250"
-                                            DisplayMemberBinding="{Binding Reason}"/>
+                                <!-- FILE / FOLDER -->
 
-                        </GridView>
+                                <GridViewColumn Header="File / Folder"
+                                                Width="280"
+                                                DisplayMemberBinding="{Binding FileName}"/>
 
-                    </ListView.View>
 
-                </ListView>
+                                <!-- CATEGORY -->
+
+                                <GridViewColumn Header="Category"
+                                                Width="170"
+                                                DisplayMemberBinding="{Binding Category}"/>
+
+
+                                <!-- LOCATION -->
+
+                                <GridViewColumn Header="Location"
+                                                Width="170"
+                                                DisplayMemberBinding="{Binding Location}"/>
+
+
+                                <!-- SAFETY -->
+
+                                <GridViewColumn Header="Safety"
+                                                Width="140">
+
+                                    <GridViewColumn.CellTemplate>
+
+                                        <DataTemplate>
+
+                                            <StackPanel Orientation="Horizontal">
+
+                                                <TextBlock Text="{Binding SafetyIcon, Mode=OneWay}"
+                                                           Margin="0,0,5,0"/>
+
+                                                <TextBlock Text="{Binding Safety, Mode=OneWay}"/>
+
+                                            </StackPanel>
+
+                                        </DataTemplate>
+
+                                    </GridViewColumn.CellTemplate>
+
+                                </GridViewColumn>
+
+
+                                <!-- REASON -->
+
+                                <GridViewColumn Header="Reason"
+                                                Width="250"
+                                                DisplayMemberBinding="{Binding Reason}"/>
+
+                            </GridView>
+
+                        </ListView.View>
+
+                    </ListView>
+
+
+                    <!-- ================================================= -->
+                    <!-- SIMPLE FOLDER VIEW -->
+                    <!-- ================================================= -->
+
+                    <ListView x:Name="FolderList"
+                              Visibility="Collapsed"
+                              SelectionChanged="CandidateList_SelectionChanged">
+
+                        <ListView.View>
+
+                            <GridView>
+
+
+                                <!-- SELECT -->
+
+                                <GridViewColumn Width="45">
+
+                                    <GridViewColumn.Header>
+
+                                        <CheckBox x:Name="FolderSelectAllCheckBox"
+                                                  Checked="SelectAllCheckBox_Checked"
+                                                  Unchecked="SelectAllCheckBox_Unchecked"/>
+
+                                    </GridViewColumn.Header>
+
+                                    <GridViewColumn.CellTemplate>
+
+                                        <DataTemplate>
+
+                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                      Checked="CandidateCheckBox_Changed"
+                                                      Unchecked="CandidateCheckBox_Changed"/>
+
+                                        </DataTemplate>
+
+                                    </GridViewColumn.CellTemplate>
+
+                                </GridViewColumn>
+
+
+                                <!-- FOLDER -->
+
+                                <GridViewColumn Header="Folder"
+                                                Width="850">
+
+                                    <GridViewColumn.CellTemplate>
+
+                                        <DataTemplate>
+
+                                            <StackPanel Orientation="Horizontal">
+
+                                                <TextBlock Text="📁"
+                                                           FontSize="16"
+                                                           Margin="0,0,8,0"/>
+
+                                                <StackPanel>
+
+                                                    <TextBlock Text="{Binding FileName}"
+                                                               FontWeight="SemiBold"/>
+
+                                                    <TextBlock Text="{Binding Path}"
+                                                               FontSize="12"
+                                                               Foreground="#777"/>
+
+                                                </StackPanel>
+
+                                            </StackPanel>
+
+                                        </DataTemplate>
+
+                                    </GridViewColumn.CellTemplate>
+
+                                </GridViewColumn>
+
+
+                                <!-- SIZE -->
+
+                                <GridViewColumn Header="Size"
+                                                Width="180"
+                                                DisplayMemberBinding="{Binding SizeDisplay}"/>
+
+                            </GridView>
+
+                        </ListView.View>
+
+                    </ListView>
+
+                </Grid>
 
             </Border>
 
         </Grid>
 
-        <!-- Bottom -->
+
+        <!-- ================================================= -->
+        <!-- BOTTOM ACTIONS -->
+        <!-- ================================================= -->
+
         <Grid Grid.Row="4"
               Margin="0,14,0,0">
 
@@ -338,6 +513,9 @@
                 <ColumnDefinition/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
+
+
+            <!-- INFO -->
 
             <StackPanel>
 
@@ -351,27 +529,32 @@
 
             </StackPanel>
 
-           <StackPanel Grid.Column="1" Orientation="Horizontal">
-    <Button Content="📂 Open Location"
-            Click="OpenLocationButton_Click"
-            Height="38"
-            Margin="0,0,8,0"/>
 
-    <Button x:Name="QuarantineButton"
-            Content="🗑 Quarantine Selected"
-            Click="QuarantineButton_Click"
-            Height="38"
-            Margin="0,0,8,0"/>
+            <!-- BUTTONS -->
 
-    <Button x:Name="PermanentDeleteButton"
-            Content="❌ Permanently Delete"
-            Click="PermanentDeleteButton_Click"
-            Height="38"/>
-</StackPanel>
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal">
+
+                <Button Content="📂 Open Location"
+                        Click="OpenLocationButton_Click"
+                        Height="38"
+                        Margin="0,0,8,0"/>
+
+                <Button x:Name="QuarantineButton"
+                        Content="🗑 Quarantine Selected"
+                        Click="QuarantineButton_Click"
+                        Height="38"
+                        Margin="0,0,8,0"/>
+
+                <Button x:Name="PermanentDeleteButton"
+                        Content="❌ Permanently Delete"
+                        Click="PermanentDeleteButton_Click"
+                        Height="38"/>
+
+            </StackPanel>
 
         </Grid>
 
     </Grid>
-   
 
 </Window>
