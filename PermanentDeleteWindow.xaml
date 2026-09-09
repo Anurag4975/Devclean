@@ -9,9 +9,9 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize"
         WindowStyle="SingleBorderWindow"
-        Background="#F5F6F8">
+        Background="{StaticResource WindowBackgroundBrush}">
 
-    <Grid Margin="20">
+    <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -19,156 +19,105 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0"
-                    Margin="0,0,0,16">
+        <!-- HEADER -->
+        <Border Grid.Row="0"
+                Background="{StaticResource AccentColorLight}"
+                BorderBrush="{StaticResource DangerBrush}"
+                BorderThickness="0,0,0,0"
+                CornerRadius="{StaticResource CardRadius}"
+                Padding="18,14"
+                Margin="0,0,0,18">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE7BA;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="20"
+                               Foreground="{StaticResource DangerBrush}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"/>
+                    <TextBlock Text="Permanent Deletion" Style="{StaticResource TitleText}" FontSize="22"/>
+                </StackPanel>
+                <TextBlock x:Name="WarningText"
+                           Text="This action cannot be undone."
+                           Foreground="{StaticResource DangerBrush}"
+                           FontWeight="SemiBold"
+                           FontSize="13.5"
+                           Margin="30,4,0,0"/>
+            </StackPanel>
+        </Border>
 
-            <TextBlock Text="⚠ Permanent Deletion"
-                       FontSize="26"
-                       FontWeight="Bold"/>
-
-            <TextBlock x:Name="WarningText"
-                       Text="This action cannot be undone."
-                       Foreground="#B00020"
-                       FontSize="14"
-                       Margin="0,5,0,0"/>
-        </StackPanel>
-
-        <!-- Summary -->
-        <Grid Grid.Row="1"
-              Margin="0,0,0,16">
-
+        <!-- SUMMARY -->
+        <Grid Grid.Row="1" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
                 <ColumnDefinition/>
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0"
-                    Background="White"
-                    CornerRadius="8"
-                    Padding="16"
-                    Margin="0,0,8,0">
-
+            <Border Grid.Column="0" Style="{StaticResource StatCardBorder}" Margin="0,0,8,0" Effect="{StaticResource CardShadow}">
                 <StackPanel>
-                    <TextBlock Text="Files"
-                               Foreground="#666"/>
-
-                    <TextBlock x:Name="FileCountText"
-                               Text="0"
-                               FontSize="24"
-                               FontWeight="Bold"
-                               Margin="0,5,0,0"/>
+                    <TextBlock Text="Files" Style="{StaticResource StatLabelText}"/>
+                    <TextBlock x:Name="FileCountText" Text="0" Style="{StaticResource StatValueText}" Margin="0,5,0,0"/>
                 </StackPanel>
             </Border>
 
-            <Border Grid.Column="1"
-                    Background="White"
-                    CornerRadius="8"
-                    Padding="16"
-                    Margin="8,0">
-
+            <Border Grid.Column="1" Style="{StaticResource StatCardBorder}" Margin="8,0" Effect="{StaticResource CardShadow}">
                 <StackPanel>
-                    <TextBlock Text="Total size"
-                               Foreground="#666"/>
-
-                    <TextBlock x:Name="TotalSizeText"
-                               Text="0 B"
-                               FontSize="24"
-                               FontWeight="Bold"
-                               Margin="0,5,0,0"/>
+                    <TextBlock Text="Total size" Style="{StaticResource StatLabelText}"/>
+                    <TextBlock x:Name="TotalSizeText" Text="0 B" Style="{StaticResource StatValueText}" Margin="0,5,0,0"/>
                 </StackPanel>
             </Border>
 
-            <Border Grid.Column="2"
-                    Background="White"
-                    CornerRadius="8"
-                    Padding="16"
-                    Margin="8,0,0,0">
-
+            <Border Grid.Column="2" Style="{StaticResource StatCardBorder}" Margin="8,0,0,0" Effect="{StaticResource CardShadow}">
                 <StackPanel>
-                    <TextBlock Text="Safety"
-                               Foreground="#666"/>
-
+                    <TextBlock Text="Safety" Style="{StaticResource StatLabelText}"/>
                     <TextBlock x:Name="SafetySummaryText"
                                Text="Safe: 0"
                                FontSize="16"
                                FontWeight="SemiBold"
-                               Margin="0,5,0,0"/>
+                               Margin="0,7,0,0"/>
                 </StackPanel>
             </Border>
         </Grid>
 
-        <!-- File list -->
-        <Border Grid.Row="2"
-                Background="White"
-                CornerRadius="8"
-                Padding="8">
-
+        <!-- FILE LIST -->
+        <Border Grid.Row="2" Style="{StaticResource ListContainerBorder}" Effect="{StaticResource CardShadow}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0"
-                      Margin="8,4,8,10">
-
-                    <TextBlock Text="Selected files"
-                               FontSize="16"
-                               FontWeight="SemiBold"/>
-
+                <Grid Grid.Row="0" Margin="10,8,10,10">
+                    <TextBlock Text="Selected files" Style="{StaticResource SectionHeaderText}"/>
                     <TextBlock x:Name="ListCountText"
                                HorizontalAlignment="Right"
-                               Foreground="#666"/>
+                               Style="{StaticResource SecondaryText}"/>
                 </Grid>
 
-                <ListView x:Name="FileList"
-                          Grid.Row="1">
-
+                <ListView x:Name="FileList" Grid.Row="1">
                     <ListView.View>
                         <GridView>
-
-                            <GridViewColumn Header="File"
-                                            Width="210"
-                                            DisplayMemberBinding="{Binding FileName}"/>
-
-                            <GridViewColumn Header="Size"
-                                            Width="90"
-                                            DisplayMemberBinding="{Binding SizeDisplay}"/>
-
-                            <GridViewColumn Header="Category"
-                                            Width="130"
-                                            DisplayMemberBinding="{Binding Category}"/>
-
-                            <GridViewColumn Header="Safety"
-                                            Width="100"
-                                            DisplayMemberBinding="{Binding Safety}"/>
-
-                            <GridViewColumn Header="Location"
-                                            Width="260"
-                                            DisplayMemberBinding="{Binding Path}"/>
-
+                            <GridViewColumn Header="File" Width="210" DisplayMemberBinding="{Binding FileName}"/>
+                            <GridViewColumn Header="Size" Width="90" DisplayMemberBinding="{Binding SizeDisplay}"/>
+                            <GridViewColumn Header="Category" Width="130" DisplayMemberBinding="{Binding Category}"/>
+                            <GridViewColumn Header="Safety" Width="100" DisplayMemberBinding="{Binding Safety}"/>
+                            <GridViewColumn Header="Location" Width="260" DisplayMemberBinding="{Binding Path}"/>
                         </GridView>
                     </ListView.View>
-
                 </ListView>
             </Grid>
         </Border>
 
-        <!-- Bottom -->
-        <Grid Grid.Row="3"
-              Margin="0,16,0,0">
-
+        <!-- BOTTOM -->
+        <Grid Grid.Row="3" Margin="0,18,0,0">
             <TextBlock x:Name="BottomWarningText"
                        VerticalAlignment="Center"
                        Text="These files will be permanently deleted."
-                       Foreground="#B00020"
+                       Foreground="{StaticResource DangerBrush}"
                        FontWeight="SemiBold"/>
 
-            <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Right">
-
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Cancel"
                         Width="100"
                         Height="40"
@@ -176,12 +125,16 @@
                         Click="CancelButton_Click"/>
 
                 <Button x:Name="DeleteButton"
-                        Content="Permanently Delete"
-                        Width="190"
+                        Style="{StaticResource DangerButton}"
+                        Width="200"
                         Height="40"
-                        Click="DeleteButton_Click"/>
+                        Click="DeleteButton_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,8,0"/>
+                        <TextBlock Text="Permanently Delete"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Grid>
-
     </Grid>
 </Window>

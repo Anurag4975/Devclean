@@ -4,17 +4,11 @@
              StartupUri="MainWindow.xaml">
 
     <Application.Resources>
-
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Margin" Value="4"/>
-        </Style>
-
-        <Style TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
-
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 
 </Application>

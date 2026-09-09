@@ -4,11 +4,12 @@
         Title="DevClean - Quarantine Manager"
         Width="1200"
         Height="700"
+        MinWidth="900"
+        MinHeight="500"
         WindowStartupLocation="CenterOwner"
-        Background="#F5F6F8">
+        Background="{StaticResource WindowBackgroundBrush}">
 
-    <Grid Margin="24">
-
+    <Grid Margin="28,24,28,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -16,85 +17,64 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0">
-            <TextBlock Text="Quarantine Manager"
-                       FontSize="28"
-                       FontWeight="Bold"/>
-
-            <TextBlock Text="Restore items or permanently remove them."
-                       Margin="0,6,0,20"
-                       Foreground="#666"/>
+        <!-- HEADER -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Quarantine Manager" Style="{StaticResource TitleText}"/>
+            <TextBlock Text="Restore items to their original location, or remove them for good."
+                       Style="{StaticResource SecondaryText}"
+                       Margin="0,4,0,0"/>
         </StackPanel>
 
-        <StackPanel Grid.Row="1"
-                    Orientation="Horizontal"
-                    Margin="0,0,0,12">
+        <!-- ACTIONS -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,14">
+            <Button Click="RefreshButton_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,8,0"/>
+                    <TextBlock Text="Refresh"/>
+                </StackPanel>
+            </Button>
 
-            <Button Content="🔄 Refresh"
-                    Click="RefreshButton_Click"/>
+            <Button Style="{StaticResource AccentButton}" Click="RestoreButton_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,8,0"/>
+                    <TextBlock Text="Restore Selected"/>
+                </StackPanel>
+            </Button>
 
-            <Button Content="↩ Restore Selected"
-                    Click="RestoreButton_Click"/>
-
-            <Button Content="🗑 Permanently Delete"
-                    Click="DeleteButton_Click"/>
+            <Button Style="{StaticResource DangerButton}" Click="DeleteButton_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,8,0"/>
+                    <TextBlock Text="Permanently Delete"/>
+                </StackPanel>
+            </Button>
         </StackPanel>
 
-        <Border Grid.Row="2"
-                Background="White"
-                CornerRadius="8"
-                Padding="10">
-
+        <!-- LIST -->
+        <Border Grid.Row="2" Style="{StaticResource ListContainerBorder}" Effect="{StaticResource CardShadow}">
             <ListView x:Name="QuarantineList">
-
                 <ListView.View>
-
                     <GridView>
-
                         <GridViewColumn Width="40">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
-                                    <CheckBox IsChecked="{Binding IsSelected}"
-                                              HorizontalAlignment="Center"/>
+                                    <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Center"/>
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
 
-                        <GridViewColumn Header="Type"
-                                        Width="80"
-                                        DisplayMemberBinding="{Binding TargetType}"/>
-
-                        <GridViewColumn Header="Name"
-                                        Width="200"
-                                        DisplayMemberBinding="{Binding FileName}"/>
-
-                        <GridViewColumn Header="Original Location"
-                                        Width="360"
-                                        DisplayMemberBinding="{Binding OriginalPath}"/>
-
-                        <GridViewColumn Header="Size"
-                                        Width="100"
-                                        DisplayMemberBinding="{Binding SizeDisplay}"/>
-
-                        <GridViewColumn Header="Quarantined"
-                                        Width="150"
-                                        DisplayMemberBinding="{Binding QuarantinedAtDisplay}"/>
-
-                        <GridViewColumn Header="Reason"
-                                        Width="200"
-                                        DisplayMemberBinding="{Binding Reason}"/>
-
+                        <GridViewColumn Header="Type" Width="80" DisplayMemberBinding="{Binding TargetType}"/>
+                        <GridViewColumn Header="Name" Width="200" DisplayMemberBinding="{Binding FileName}"/>
+                        <GridViewColumn Header="Original Location" Width="360" DisplayMemberBinding="{Binding OriginalPath}"/>
+                        <GridViewColumn Header="Size" Width="100" DisplayMemberBinding="{Binding SizeDisplay}"/>
+                        <GridViewColumn Header="Quarantined" Width="150" DisplayMemberBinding="{Binding QuarantinedAtDisplay}"/>
+                        <GridViewColumn Header="Reason" Width="200" DisplayMemberBinding="{Binding Reason}"/>
                     </GridView>
-
                 </ListView.View>
-
             </ListView>
-
         </Border>
 
-        <Grid Grid.Row="3"
-              Margin="0,14,0,0">
-
+        <!-- FOOTER -->
+        <Grid Grid.Row="3" Margin="0,16,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
                 <ColumnDefinition Width="Auto"/>
@@ -102,16 +82,13 @@
 
             <TextBlock x:Name="StatusText"
                        VerticalAlignment="Center"
-                       Foreground="#666"
+                       Style="{StaticResource SecondaryText}"
                        Text="Loading..."/>
 
             <Button Grid.Column="1"
                     Content="Close"
                     Click="CloseButton_Click"
-                    Width="100"/>
-
+                    Width="110"/>
         </Grid>
-
     </Grid>
-
 </Window>

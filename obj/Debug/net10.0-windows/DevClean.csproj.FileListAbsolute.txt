@@ -22,3 +22,5 @@ D:\DevClean\obj\Debug\net10.0-windows\QuarantineWindow.baml
 D:\DevClean\obj\Debug\net10.0-windows\QuarantineWindow.g.cs
 D:\DevClean\obj\Debug\net10.0-windows\PermanentDeleteWindow.baml
 D:\DevClean\obj\Debug\net10.0-windows\PermanentDeleteWindow.g.cs
+D:\DevClean\obj\Debug\net10.0-windows\DevClean.sourcelink.json
+D:\DevClean\obj\Debug\net10.0-windows\Theme.baml
