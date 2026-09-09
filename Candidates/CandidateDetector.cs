@@ -156,9 +156,6 @@ public class CandidateDetector
 
             // -------------------------------------------------
             // Size
-            //
-            // Size is informational AND contributes to priority.
-            // It never determines whether the file is displayed.
             // -------------------------------------------------
 
             if (file.Size >= 10L * 1024 * 1024 * 1024)
@@ -226,16 +223,6 @@ public class CandidateDetector
                 .Distinct()
                 .ToList();
 
-            // -------------------------------------------------
-            // IMPORTANT
-            //
-            // There is intentionally NO:
-            //
-            // if (score < 10) continue;
-            //
-            // Every scanned file is returned.
-            // -------------------------------------------------
-
             FileCategory category =
                 DeterminePrimaryCategory(
                     location,
@@ -263,389 +250,239 @@ public class CandidateDetector
     }
 
     // ---------------------------------------------------------
-    // FOLDER CANDIDATES
+    // ALL FOLDERS
     // ---------------------------------------------------------
 
     public List<CleanupCandidate> FindFolderCandidates(
         IEnumerable<FileItem> files)
     {
-        var candidates = new List<CleanupCandidate>();
+        List<FileItem> fileList =
+            files.ToList();
 
-        var folderPaths =
-            files
-                .Select(x => x.ParentDirectory)
-                .Where(x =>
-                    !string.IsNullOrWhiteSpace(x))
-                .Distinct(
-                    StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-        foreach (string folderPath in folderPaths)
+        if (fileList.Count == 0)
         {
-            if (!Directory.Exists(folderPath))
+            return [];
+        }
+
+        string driveRoot =
+            Path.GetPathRoot(fileList[0].Path)
+            ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(driveRoot))
+        {
+            return [];
+        }
+
+        List<string> directories = [];
+
+        try
+        {
+            directories =
+                Directory
+                    .EnumerateDirectories(
+                        driveRoot,
+                        "*",
+                        SearchOption.AllDirectories)
+                    .Where(path =>
+                        !IsDevCleanPath(path))
+                    .ToList();
+        }
+        catch
+        {
+        }
+
+        Dictionary<string, long> folderSizes =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (FileItem file in fileList)
+        {
+            string? directory =
+                file.ParentDirectory;
+
+            while (!string.IsNullOrWhiteSpace(directory))
+            {
+                string normalized =
+                    NormalizePath(directory);
+
+                if (!folderSizes.ContainsKey(normalized))
+                {
+                    folderSizes[normalized] = 0;
+                }
+
+                folderSizes[normalized] += file.Size;
+
+                string? parent =
+                    Directory.GetParent(normalized)?.FullName;
+
+                if (string.IsNullOrWhiteSpace(parent) ||
+                    string.Equals(
+                        NormalizePath(parent),
+                        normalized,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+
+                directory = parent;
+            }
+        }
+
+        List<CleanupCandidate> candidates = [];
+
+        foreach (string directory in directories)
+        {
+            if (IsProtectedPath(directory))
             {
                 continue;
             }
 
-            if (IsProtectedPath(folderPath))
-            {
-                continue;
-            }
+            string path =
+                NormalizePath(directory);
 
-            DirectoryInfo directory;
+            long size =
+                folderSizes.TryGetValue(
+                    path,
+                    out long folderSize)
+                        ? folderSize
+                        : 0;
+
+            DirectoryInfo directoryInfo;
 
             try
             {
-                directory =
-                    new DirectoryInfo(folderPath);
+                directoryInfo =
+                    new DirectoryInfo(path);
             }
             catch
             {
                 continue;
             }
 
-            string folderName =
-                directory.Name;
-
-            if (!IsDisposableFolderName(folderName))
-            {
-                continue;
-            }
-
-            if (HasDisposableParent(directory))
-            {
-                continue;
-            }
-
-            long totalSize =
-                CalculateFolderSize(directory);
-
-            if (totalSize <= 0)
-            {
-                continue;
-            }
-
-            string lowerName =
-                folderName.ToLowerInvariant();
-
-            var reasons = new List<string>();
-
-            int score = 0;
-
-            if (IsDevelopmentFolder(lowerName))
-            {
-                score += 100;
-
-                reasons.Add(
-                    "Known regeneratable development folder");
-            }
-
-            if (IsCacheFolder(lowerName))
-            {
-                score += 90;
-
-                reasons.Add("Cache folder");
-            }
-
-            if (IsTempFolder(lowerName))
-            {
-                score += 90;
-
-                reasons.Add("Temporary folder");
-            }
-
-            if (lowerName.Contains("backup"))
-            {
-                score += 40;
-
-                reasons.Add("Backup folder");
-            }
-
-            if (totalSize >= 10L * 1024 * 1024 * 1024)
-            {
-                score += 40;
-                reasons.Add("Extremely large folder");
-            }
-            else if (totalSize >= 5L * 1024 * 1024 * 1024)
-            {
-                score += 35;
-                reasons.Add("Very large folder");
-            }
-            else if (totalSize >= 1L * 1024 * 1024 * 1024)
-            {
-                score += 25;
-                reasons.Add("Large folder");
-            }
-            else if (totalSize >= 500L * 1024 * 1024)
-            {
-                score += 15;
-                reasons.Add("Large folder");
-            }
-
-            if (score < 30)
-            {
-                continue;
-            }
-
-            var folderFile =
-                new FileItem
+            FileItem folderFile =
+                new()
                 {
-                    Path = folderPath,
-
+                    Path = path,
                     ParentDirectory =
-                        directory.Parent?.FullName
+                        directoryInfo.Parent?.FullName
                         ?? string.Empty,
-
-                    Name = folderName,
-
-                    Size = totalSize,
-
+                    Name = directoryInfo.Name,
+                    Size = size,
                     Extension = string.Empty,
-
-                    Created =
-                        directory.CreationTime,
-
-                    LastModified =
-                        directory.LastWriteTime,
-
-                    LastAccessed =
-                        directory.LastAccessTime,
-
+                    Created = GetDirectoryCreationTime(path),
+                    LastModified = GetDirectoryLastModified(path),
+                    LastAccessed = GetDirectoryLastAccessed(path),
                     IsHidden =
-                        (directory.Attributes &
+                        (directoryInfo.Attributes &
                          FileAttributes.Hidden) != 0,
-
                     IsSystem =
-                        (directory.Attributes &
+                        (directoryInfo.Attributes &
                          FileAttributes.System) != 0
                 };
-
-            LocationType location =
-                DetermineFolderLocation(
-                    lowerName);
-
-            FileCategory category =
-                DetermineFolderCategory(
-                    lowerName);
 
             candidates.Add(
                 new CleanupCandidate
                 {
                     File = folderFile,
-                    TargetPath = folderPath,
+                    TargetPath = path,
                     IsFolder = true,
-                    Location = location,
-                    Category = category,
-                    Reasons = reasons
-                        .Distinct()
-                        .ToList(),
-                    PriorityScore = score
+                    Location = LocationType.Unknown,
+                    Category = FileCategory.Unknown,
+                    Reasons = [],
+                    PriorityScore = 0
                 });
         }
 
         return candidates
-            .OrderByDescending(
-                x => x.PriorityScore)
-            .ThenByDescending(
-                x => x.Size)
+            .OrderByDescending(x => x.Size)
+            .ThenBy(x => x.TargetPath)
             .ToList();
     }
 
     // ---------------------------------------------------------
-    // FOLDER HELPERS
+    // DevClean's own folder must never appear as a target.
     // ---------------------------------------------------------
 
-    private static bool IsDisposableFolderName(
-        string folderName)
+    private static bool IsDevCleanPath(
+        string path)
     {
-        string name =
-            folderName.ToLowerInvariant();
+        string normalized =
+            path.Replace('/', '\\')
+                .TrimEnd('\\');
 
         return
-            IsDevelopmentFolder(name) ||
-            IsCacheFolder(name) ||
-            IsTempFolder(name) ||
-            name.Contains("backup");
-    }
-
-    private static bool IsDevelopmentFolder(
-        string name)
-    {
-        return name is
-            "node_modules" or
-            ".dart_tool" or
-            "build" or
-            "bin" or
-            "obj" or
-            "__pycache__" or
-            "venv" or
-            ".venv";
-    }
-
-    private static bool IsCacheFolder(
-        string name)
-    {
-        return
-            name == "cache" ||
-            name == "caches" ||
-            name.Contains("cache");
-    }
-
-    private static bool IsTempFolder(
-        string name)
-    {
-        return
-            name == "temp" ||
-            name == "tmp" ||
-            name == "temporary";
-    }
-
-    private static bool HasDisposableParent(
-        DirectoryInfo directory)
-    {
-        DirectoryInfo? parent =
-            directory.Parent;
-
-        while (parent != null)
-        {
-            if (IsDisposableFolderName(parent.Name))
-            {
-                return true;
-            }
-
-            parent = parent.Parent;
-        }
-
-        return false;
+            normalized.EndsWith(
+                @"\.DevClean",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            normalized.Contains(
+                @"\.DevClean\",
+                StringComparison.OrdinalIgnoreCase);
     }
 
     // ---------------------------------------------------------
-    // FOLDER SIZE
+    // DIRECTORY DATES
     // ---------------------------------------------------------
 
-    private static long CalculateFolderSize(
-        DirectoryInfo directory)
+    private static DateTime GetDirectoryCreationTime(
+        string path)
     {
-        long total = 0;
-
         try
         {
-            if ((directory.Attributes &
-                 FileAttributes.ReparsePoint) != 0)
-            {
-                return 0;
-            }
-
-            foreach (FileInfo file in
-                     directory.EnumerateFiles())
-            {
-                try
-                {
-                    if ((file.Attributes &
-                         FileAttributes.ReparsePoint) != 0)
-                    {
-                        continue;
-                    }
-
-                    total += file.Length;
-                }
-                catch
-                {
-                }
-            }
-
-            foreach (DirectoryInfo child in
-                     directory.EnumerateDirectories())
-            {
-                try
-                {
-                    if ((child.Attributes &
-                         FileAttributes.ReparsePoint) != 0)
-                    {
-                        continue;
-                    }
-
-                    if (string.Equals(
-                        child.Name,
-                        ".DevClean",
-                        StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    total +=
-                        CalculateFolderSize(child);
-                }
-                catch
-                {
-                }
-            }
+            return Directory.GetCreationTime(path);
         }
         catch
         {
+            return DateTime.MinValue;
         }
+    }
 
-        return total;
+    private static DateTime GetDirectoryLastModified(
+        string path)
+    {
+        try
+        {
+            return Directory.GetLastWriteTime(path);
+        }
+        catch
+        {
+            return DateTime.MinValue;
+        }
+    }
+
+    private static DateTime GetDirectoryLastAccessed(
+        string path)
+    {
+        try
+        {
+            return Directory.GetLastAccessTime(path);
+        }
+        catch
+        {
+            return DateTime.MinValue;
+        }
     }
 
     // ---------------------------------------------------------
-    // LOCATION
+    // PATH NORMALIZATION
     // ---------------------------------------------------------
 
-    private static LocationType DetermineFolderLocation(
-        string name)
+    private static string NormalizePath(
+        string path)
     {
-        if (IsDevelopmentFolder(name))
+        try
         {
-            return LocationType.DevelopmentProject;
+            return Path
+                .GetFullPath(path)
+                .TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar);
         }
-
-        if (IsCacheFolder(name))
+        catch
         {
-            return LocationType.Cache;
+            return path.TrimEnd(
+                Path.DirectorySeparatorChar,
+                Path.AltDirectorySeparatorChar);
         }
-
-        if (IsTempFolder(name))
-        {
-            return LocationType.Temp;
-        }
-
-        if (name.Contains("backup"))
-        {
-            return LocationType.Backup;
-        }
-
-        return LocationType.Unknown;
-    }
-
-    // ---------------------------------------------------------
-    // CATEGORY
-    // ---------------------------------------------------------
-
-    private static FileCategory DetermineFolderCategory(
-        string name)
-    {
-        if (IsDevelopmentFolder(name))
-        {
-            return FileCategory.DevelopmentArtifact;
-        }
-
-        if (IsCacheFolder(name))
-        {
-            return FileCategory.Cache;
-        }
-
-        if (IsTempFolder(name))
-        {
-            return FileCategory.Temporary;
-        }
-
-        if (name.Contains("backup"))
-        {
-            return FileCategory.Backup;
-        }
-
-        return FileCategory.Unknown;
     }
 
     // ---------------------------------------------------------
@@ -658,8 +495,7 @@ public class CandidateDetector
         long size,
         List<string> reasons)
     {
-        if (size >=
-            500L * 1024 * 1024)
+        if (size >= 500L * 1024 * 1024)
         {
             return FileCategory.LargeFile;
         }
@@ -675,47 +511,37 @@ public class CandidateDetector
             return FileCategory.Cache;
         }
 
-        if (location ==
-            LocationType.DevelopmentProject)
+        if (location == LocationType.DevelopmentProject)
         {
             return FileCategory.DevelopmentArtifact;
         }
 
-        if (extension is
-            ".bak" or ".old" or ".backup")
+        if (extension is ".bak" or ".old" or ".backup")
         {
             return FileCategory.Backup;
         }
 
-        if (extension is
-            ".exe" or
-            ".msi" or
-            ".msix" or
-            ".appx")
+        if (extension is ".exe" or ".msi" or ".msix" or ".appx")
         {
             return FileCategory.Installer;
         }
 
-        if (location ==
-            LocationType.Downloads)
+        if (location == LocationType.Downloads)
         {
             return FileCategory.Download;
         }
 
-        if (location ==
-            LocationType.UserMedia)
+        if (location == LocationType.UserMedia)
         {
             return FileCategory.PersonalMedia;
         }
 
-        if (location ==
-            LocationType.UserDocuments)
+        if (location == LocationType.UserDocuments)
         {
             return FileCategory.PersonalDocument;
         }
 
-        if (location ==
-            LocationType.ApplicationData)
+        if (location == LocationType.ApplicationData)
         {
             return FileCategory.ApplicationData;
         }

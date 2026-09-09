@@ -24,6 +24,8 @@ public partial class MainWindow : Window
         _visibleCandidates = [];
 
     private CancellationTokenSource? _cancellationSource;
+    
+    private bool _updatingSelection;
 
     public MainWindow()
 {
@@ -151,9 +153,11 @@ public partial class MainWindow : Window
         // SMART FOLDER TARGETS
         // -------------------------------------------------
 
-        List<CleanupCandidate> folderCandidates =
-            _candidateDetector.FindFolderCandidates(
-                files);
+     List<CleanupCandidate> folderCandidates =
+    _candidateDetector.FindFolderCandidates(
+        files);
+
+
 
         // -------------------------------------------------
         // COMBINE
@@ -182,31 +186,23 @@ public partial class MainWindow : Window
         // -------------------------------------------------
 
         foreach (CleanupCandidate candidate
-                 in candidates)
-        {
-            _cancellationSource.Token
-                .ThrowIfCancellationRequested();
+         in candidates)
+{
+    _cancellationSource.Token
+        .ThrowIfCancellationRequested();
 
-            SafetyAnalysis analysis =
-                await _analyzer.AnalyzeAsync(
-                    candidate.File,
-                    _cancellationSource.Token);
+    SafetyAnalysis analysis =
+        await _analyzer.AnalyzeAsync(
+            candidate.File,
+            _cancellationSource.Token);
 
-            // Never allow a dangerous folder to become
-            // a cleanup target.
-            if (candidate.IsFolder &&
-                analysis.Level ==
-                SafetyLevel.DoNotDelete)
-            {
-                continue;
-            }
-
-            _allCandidates.Add(
-                new CandidateViewModel(
-                    candidate,
-                    analysis));
-        }
-
+    // Show every folder.
+    // Safety will control whether it can be deleted.
+    _allCandidates.Add(
+        new CandidateViewModel(
+            candidate,
+            analysis));
+}
         PopulateCategoryFilter();
 
         ApplyFilters();
@@ -379,15 +375,47 @@ public partial class MainWindow : Window
         object sender,
         RoutedEventArgs e)
     {
+        _updatingSelection = true;
+
         foreach (CandidateViewModel candidate
-                 in _visibleCandidates)
+                 in _allCandidates)
         {
-            if (candidate.Analysis.Level !=
-                SafetyLevel.DoNotDelete)
-            {
-                candidate.IsSelected = true;
-            }
+            candidate.IsSelected = false;
         }
+
+        IEnumerable<CandidateViewModel> selectable =
+            _visibleCandidates
+                .Where(x =>
+                    x.Analysis.Level !=
+                    SafetyLevel.DoNotDelete)
+                .OrderBy(x => NormalizePath(x.Path).Length);
+
+        List<string> selectedPaths = [];
+
+        foreach (CandidateViewModel candidate
+                 in selectable)
+        {
+            string path =
+                NormalizePath(candidate.Path);
+
+            bool alreadyCovered =
+                selectedPaths.Any(
+                    parent =>
+                        IsSameOrDescendantPath(
+                            path,
+                            parent));
+
+            if (alreadyCovered)
+            {
+                continue;
+            }
+
+            candidate.IsSelected = true;
+
+            selectedPaths.Add(path);
+        }
+
+        _updatingSelection = false;
 
         UpdateSelectionDisplay();
     }
@@ -396,11 +424,15 @@ public partial class MainWindow : Window
         object sender,
         RoutedEventArgs e)
     {
+        _updatingSelection = true;
+
         foreach (CandidateViewModel candidate
-                 in _visibleCandidates)
+                 in _allCandidates)
         {
             candidate.IsSelected = false;
         }
+
+        _updatingSelection = false;
 
         UpdateSelectionDisplay();
     }
@@ -409,7 +441,141 @@ public partial class MainWindow : Window
         object sender,
         RoutedEventArgs e)
     {
+        if (_updatingSelection)
+        {
+            return;
+        }
+
+        if (sender is CheckBox checkBox &&
+            checkBox.DataContext is CandidateViewModel candidate)
+        {
+            if (candidate.Analysis.Level ==
+                SafetyLevel.DoNotDelete)
+            {
+                _updatingSelection = true;
+
+                candidate.IsSelected = false;
+
+                _updatingSelection = false;
+
+                UpdateSelectionDisplay();
+
+                return;
+            }
+
+            _updatingSelection = true;
+
+            if (candidate.IsSelected)
+            {
+                ApplySmartSelection(candidate);
+            }
+
+            _updatingSelection = false;
+        }
+
         UpdateSelectionDisplay();
+    }
+
+    private void ApplySmartSelection(
+        CandidateViewModel selected)
+    {
+        string selectedPath =
+            NormalizePath(selected.Path);
+
+        if (selected.Candidate.IsFolder)
+        {
+            // A selected folder owns everything underneath it.
+            // Deselect all selected descendants.
+            foreach (CandidateViewModel candidate
+                     in _allCandidates)
+            {
+                if (ReferenceEquals(candidate, selected))
+                {
+                    continue;
+                }
+
+                if (!candidate.IsSelected)
+                {
+                    continue;
+                }
+
+                if (IsSameOrDescendantPath(
+                        candidate.Path,
+                        selectedPath))
+                {
+                    candidate.IsSelected = false;
+                }
+            }
+
+            return;
+        }
+
+        // A file cannot coexist with a selected parent folder.
+        foreach (CandidateViewModel candidate
+                 in _allCandidates)
+        {
+            if (!candidate.IsSelected ||
+                !candidate.Candidate.IsFolder)
+            {
+                continue;
+            }
+
+            string folderPath =
+                NormalizePath(candidate.Path);
+
+            if (IsSameOrDescendantPath(
+                    selectedPath,
+                    folderPath))
+            {
+                candidate.IsSelected = false;
+            }
+        }
+    }
+
+    private static bool IsSameOrDescendantPath(
+        string childPath,
+        string parentPath)
+    {
+        string child =
+            NormalizePath(childPath);
+
+        string parent =
+            NormalizePath(parentPath);
+
+        if (string.Equals(
+                child,
+                parent,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        string parentWithSeparator =
+            parent + Path.DirectorySeparatorChar;
+
+        return child.StartsWith(
+            parentWithSeparator,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizePath(
+        string path)
+    {
+        try
+        {
+            return Path
+                .GetFullPath(path)
+                .TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar);
+        }
+        catch
+        {
+            return path
+                .TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar);
+        }
     }
 
     private void CandidateList_SelectionChanged(
@@ -644,8 +810,8 @@ public partial class MainWindow : Window
 
 
     private void ExitButton_Click(
-    object sender,
-    RoutedEventArgs e)
+        object sender,
+        RoutedEventArgs e)
 {
     Close();
 }
