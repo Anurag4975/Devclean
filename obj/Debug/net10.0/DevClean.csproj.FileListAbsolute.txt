@@ -1,0 +1,14 @@
+D:\DevClean\bin\Debug\net10.0\DevClean.exe
+D:\DevClean\bin\Debug\net10.0\DevClean.deps.json
+D:\DevClean\bin\Debug\net10.0\DevClean.runtimeconfig.json
+D:\DevClean\bin\Debug\net10.0\DevClean.dll
+D:\DevClean\bin\Debug\net10.0\DevClean.pdb
+D:\DevClean\obj\Debug\net10.0\DevClean.GeneratedMSBuildEditorConfig.editorconfig
+D:\DevClean\obj\Debug\net10.0\DevClean.AssemblyInfoInputs.cache
+D:\DevClean\obj\Debug\net10.0\DevClean.AssemblyInfo.cs
+D:\DevClean\obj\Debug\net10.0\DevClean.csproj.CoreCompileInputs.cache
+D:\DevClean\obj\Debug\net10.0\DevClean.dll
+D:\DevClean\obj\Debug\net10.0\refint\DevClean.dll
+D:\DevClean\obj\Debug\net10.0\DevClean.pdb
+D:\DevClean\obj\Debug\net10.0\DevClean.genruntimeconfig.cache
+D:\DevClean\obj\Debug\net10.0\ref\DevClean.dll
