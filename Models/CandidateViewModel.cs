@@ -1,7 +1,8 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.IO;
+using System.Runtime.CompilerServices;
+
 namespace DevClean.Models;
 
 public class CandidateViewModel : INotifyPropertyChanged
@@ -34,13 +35,15 @@ public class CandidateViewModel : INotifyPropertyChanged
     }
 
     public string FileName =>
-        Candidate.File.Name;
+        Candidate.File?.Name
+        ?? System.IO.Path.GetFileName(Candidate.TargetPath)
+        ?? string.Empty;
 
     public string Path =>
         Candidate.TargetPath;
 
     public long Size =>
-        Candidate.File.Size;
+        Candidate.File?.Size ?? Candidate.Size;
 
     public string SizeDisplay =>
         FormatSize(Size);
@@ -54,16 +57,61 @@ public class CandidateViewModel : INotifyPropertyChanged
     public string TargetType =>
         Candidate.IsFolder ? "FOLDER" : "FILE";
 
-    public string AgeDisplay =>
-        FormatAge(
-            DateTime.Now - Candidate.File.LastModified);
+    public DateTime LastModified
+    {
+        get
+        {
+            if (Candidate.File != null)
+            {
+                return Candidate.File.LastModified;
+            }
 
-    public DateTime LastModified =>
-        Candidate.File.LastModified;
+            try
+            {
+                if (Candidate.IsFolder &&
+                    Directory.Exists(Candidate.TargetPath))
+                {
+                    return Directory.GetLastWriteTime(Candidate.TargetPath);
+                }
+
+                if (File.Exists(Candidate.TargetPath))
+                {
+                    return File.GetLastWriteTime(Candidate.TargetPath);
+                }
+            }
+            catch
+            {
+                // Fallback for inaccessible paths
+            }
+
+            return DateTime.MinValue;
+        }
+    }
+
+    public string AgeDisplay
+    {
+        get
+        {
+            DateTime dt = LastModified;
+            if (dt == DateTime.MinValue)
+            {
+                return "—";
+            }
+
+            TimeSpan age = DateTime.Now - dt;
+            if (age.TotalMilliseconds < 0)
+            {
+                return "Just now";
+            }
+
+            return FormatAge(age);
+        }
+    }
 
     public string LastModifiedDisplay =>
-        Candidate.File.LastModified.ToString(
-            "yyyy-MM-dd HH:mm");
+        LastModified > DateTime.MinValue
+            ? LastModified.ToString("yyyy-MM-dd HH:mm")
+            : "—";
 
     public string Safety =>
         Analysis.Level switch
@@ -162,7 +210,7 @@ public class CandidateViewModel : INotifyPropertyChanged
                     1,
                     (int)(age.TotalDays / 30));
 
-            return $"{months} months old";
+            return $"{months} month{(months == 1 ? "" : "s")} old";
         }
 
         int years =

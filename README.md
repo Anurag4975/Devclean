@@ -1,165 +1,71 @@
-# DevClean
+# DevClean — Safe Disk Cleanup with Undo
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Windows](https://img.shields.io/badge/platform-Windows-blue.svg)](#)
-[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4.svg)](#)
+A Windows disk cleaner that **never deletes anything outright**. Everything you remove first goes into a **quarantine** folder with one-click restore. Built for non-technical users, powerful enough for developers.
 
-> A lightweight Windows app that finds what's eating your disk space — and helps you decide what can be removed **safely**.
+## What makes it different from CCleaner / BleachBit / WinDirStat
 
-DevClean scans your drives, shows you which files and folders are taking up space, and never deletes anything outright. Everything you choose to remove first goes into a **quarantine** folder, so you can restore it with one click — or permanently delete it only when you're sure.
-
----
+- **Undo on everything** — no other cleaner has a full quarantine + restore. BleachBit has no undo; CCleaner deletes immediately.
+- **Smart Clean** — one button selects *only* items rated Safe with high confidence. No scary checkboxes.
+- **Simple mode** — hides all filters, auto-selects what's safe. For non-technical users.
+- **Learning loop** — if you restore something, DevClean never suggests it again.
+- **Modern junk detection** — Docker/WSL virtual disks, npm/NuGet caches, iOS backups, Android SDK, Teams cache — things old cleaners ignore.
+- **External rule database** — `Rules/safety-rules.json` is editable and community-extendable; rules update without an app update.
+- **Hard protection** — `.git` repos, source code, Program Files, WinSxS, pagefile/hiberfil can never be selected.
+- **Corruption-proof quarantine** — atomic metadata writes with automatic .bak backup.
+- **No background service, no bundling, no telemetry.** Open core.
 
 ## Features
 
-### Drive scanning
-- Scan any drive and get a full inventory of files **and** folders.
-- Hidden folders are included in the scan — nothing is hidden from the inventory.
-- Folder sizes are calculated recursively, including everything inside them.
+- Drive scan (files + folders, hidden included, recursive sizes)
+- Files + Folders views with category, safety assessment, confidence, and plain-English reason
+- Smart parent/child selection (no double-counting)
+- Quarantine → restore / permanent delete
+- Free-space gauge, live before/after
+- Modern Junk panel (detection + advice, no auto-deletion)
+- Protected paths blocked from selection
 
-### Files view
-| Column | What it shows |
-| --- | --- |
-| File name | The file's name and path |
-| Size | Exact size on disk |
-| Type / category | Grouped by kind (cache, logs, temp, downloads, etc.) |
-| Safety assessment | Whether it looks safe to remove |
-| Reason | Why something might be removable |
-
-### Folders view
-- Folder name / full path
-- Total size (recursive, including hidden contents)
-- **Every** folder, including hidden folders — no complicated category filtering
-
-### Smart selection
-- Selecting a **parent** folder automatically excludes its children, so nothing is double-counted.
-- Protected / system folders **cannot** be selected for deletion.
-
-### Quarantine (safe delete)
-Instead of immediately deleting, DevClean moves selected items to `.DevClean\Quarantine`:
+## Build & run
 
 ```
-User selects
-   ↓
-Safety check
-   ↓
-Move to .DevClean\Quarantine   ← separate handling for folders and files
-   ↓
-Item disappears from original location
-   ↓
-Quarantine Manager
-   ↓
-Restore to original location  OR  Permanently delete
-```
-
-- **Restore** — a quarantined file or folder is returned to its exact original location.
-- **Permanent deletion** — items in quarantine can eventually be permanently deleted, including whole folders.
-
----
-
-## How it works (end-to-end flow)
-
-```
-Drive
-  ↓
-Scan
-  ↓
-Files + Folders (with recursive sizes, hidden included)
-  ↓
-User selects folder(s) / file(s)
-  ↓
-Safety check (protected/system items blocked, parent/child de-duplicated)
-  ↓
-Quarantine (moved to .DevClean\Quarantine)
-  ↓
-Folder disappears from original location
-  ↓
-Quarantine Manager
-  ↓
-Restore  OR  Permanently delete
-```
-
----
-
-## Getting started
-
-### Prerequisites
-- Windows 10 / 11
-- [.NET SDK](https://dotnet.microsoft.com/download) (8.0 or later)
-
-### Build and run
-
-```powershell
-cd D:\DevClean
 dotnet build
 dotnet run
 ```
 
-> The first build restores NuGet packages. Run the app, pick a drive, and try scanning.
-
----
+Requires .NET 8+ (project targets net10.0-windows). Windows 10/11.
 
 ## Project structure
 
 ```
-DevClean/
-├── DevClean.sln
-├── src/
-│   ├── DevClean.App/          # Windows UI (WPF / WinForms — edit this line)
-│   ├── DevClean.Core/         # Scanning, size calculation, safety assessment
-│   └── DevClean.Quarantine/   # QuarantineService: move, restore, permanent delete
-├── tests/
-├── .gitignore
-├── LICENSE
-└── README.md
+AI/            LocalSafetyAnalyzer (rule DB + learning loop)
+Candidates/    CandidateDetector (scoring + suppression)
+Cleanup/       QuarantineService (atomic, auto-expiry API) + CleanupResult
+Models/        FileItem, CleanupCandidate, SafetyResult, QuarantineItem, ...
+Safety/        SafetyEngine, LocationClassifier, SafetyRuleDatabase + Rules/safety-rules.json
+Scanner/       DiskScanner (parallel, reparse-point safe)
+Smart/         UserPreferenceStore (learning loop), SmartCleanAdvisor
+Settings/      AppSettings (quarantine retention, auto-purge, simple mode)
+ModernJunk/    ModernJunkScanner (Docker, WSL, caches, iOS backups, ...)
+Rules/         safety-rules.json (external, community-extendable)
 ```
-
-> Adjust the tree above to match your actual folder layout before pushing.
-
----
 
 ## Safety model
 
-1. **Read-only scan.** Scanning never modifies anything.
-2. **No immediate delete.** The only destructive-looking action is a *move* into quarantine.
-3. **Protected paths.** System and protected folders are blocked from selection.
-4. **Restore-first workflow.** Every quarantined item can be restored to its original path before any permanent deletion.
-5. **Parent/child de-duplication.** Selecting a parent never counts its children separately.
+1. Read-only scan — never modifies anything.
+2. No immediate delete — the only action is a *move* into quarantine.
+3. Protected paths cannot be selected.
+4. Restore-first — every quarantined item restores to its exact original path.
+5. Parent/child de-duplication — selecting a parent never double-counts children.
+6. Learning loop — restored paths are never suggested again.
 
----
+## Roadmap
 
-## Roadmap / current status
-
-- [x] Drive scan (files + folders, including hidden)
-- [x] Recursive folder-size calculation
-- [x] Files view with category, safety assessment, and removal reason
-- [x] Folders view (all folders, no category filtering)
-- [x] Smart selection (parent/child de-duplication, protected folders blocked)
-- [x] Quarantine (separate file / folder handling)
-- [x] Restore from quarantine
-- [x] Permanent deletion from quarantine
-- [ ] Integration testing of full folder-quarantine flow (in progress)
-- [ ] Settings UI
-- [ ] Scan history / growth trends
-
----
-
-## Contributing
-
-Issues and pull requests are welcome. The most valuable report is anything DevClean offered to remove that it should not have — please open an issue with the path and category.
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/thing`)
-3. Commit (`git commit -m 'Add thing'`)
-4. Push (`git push origin feature/thing`)
-5. Open a Pull Request
-
----
+- [ ] Scheduled auto-clean (safe categories only) — Pro
+- [ ] Duplicate file/photo finder — Pro
+- [ ] Large-file spotlight with preview — Pro
+- [ ] Microsoft Store MSIX packaging
+- [ ] Scan history / growth trends ("what grew this month?")
+- [ ] Treemap visualization
 
 ## License
 
-Distributed under the MIT License. See [`LICENSE`](LICENSE) for more information.
-
----
-
-*Built with .NET. Made for Windows.*
+MIT — core engine open. (Pro features may be kept closed for monetization.)

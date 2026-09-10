@@ -1,73 +1,86 @@
-using System;
-using System.IO;
 using DevClean.Models;
 
 namespace DevClean.Safety;
 
+/// <summary>
+/// Synchronous safety engine. Upgraded to use the external SafetyRuleDatabase.
+/// Public signature (Analyze(FileItem) → SafetyResult) is unchanged.
+/// </summary>
 public class SafetyEngine
 {
     public SafetyResult Analyze(FileItem file)
     {
-        string path = file.Path;
-
-        // Temporary Windows files.
-        if (IsTemporaryFile(file))
+        SafetyRule? rule = SafetyRuleDatabase.Match(file);
+        if (rule is not null)
         {
             return new SafetyResult
             {
-                Level = SafetyLevel.Safe,
-                Reason = "Temporary file",
-                Explanation = "This file appears to be temporary data that can usually be recreated."
+                Level = rule.Level,
+                Confidence = rule.Confidence,
+                Reason = rule.Reason,
+                Explanation = rule.Explanation,
+                Risk = rule.Risk,
+                Evidence = [$"Rule: {rule.Id}"]
             };
         }
 
-        // User documents and personal files should be protected.
-        if (IsUserDocument(file))
-        {
-            return new SafetyResult
-            {
-                Level = SafetyLevel.DoNotDelete,
-                Reason = "User document",
-                Explanation = "This appears to be a personal file. DevClean will not recommend deleting it automatically."
-            };
-        }
-
-        // Unknown files require user review.
-        return new SafetyResult
-        {
-            Level = SafetyLevel.Review,
-            Reason = "Unknown file",
-            Explanation = "DevClean does not have enough information to determine whether this file is safe to delete."
-        };
-    }
-
-    private bool IsTemporaryFile(FileItem file)
-    {
         string extension = file.Extension.ToLowerInvariant();
 
         if (extension is ".tmp" or ".temp")
         {
-            return true;
+            return new SafetyResult
+            {
+                Level = SafetyLevel.Safe,
+                Confidence = 90,
+                Reason = "Temporary file",
+                Explanation = "This file appears to be temporary data that can usually be recreated.",
+                Risk = "Low",
+                Evidence = ["Temporary extension"]
+            };
         }
 
         string path = file.Path.ToLowerInvariant();
+        if (path.Contains(@"\temp\") || path.Contains(@"\tmp\"))
+        {
+            return new SafetyResult
+            {
+                Level = SafetyLevel.Safe,
+                Confidence = 88,
+                Reason = "Temporary location",
+                Explanation = "This file is in a temporary folder and can usually be removed safely.",
+                Risk = "Low",
+                Evidence = ["Temporary directory"]
+            };
+        }
 
-        return path.Contains("\\temp\\") ||
-               path.Contains("\\tmp\\");
+        if (IsUserDocument(extension))
+        {
+            return new SafetyResult
+            {
+                Level = SafetyLevel.DoNotDelete,
+                Confidence = 95,
+                Reason = "User document",
+                Explanation = "This appears to be a personal file. DevClean will not recommend deleting it automatically.",
+                Risk = "High",
+                Evidence = ["Document extension"]
+            };
+        }
+
+        return new SafetyResult
+        {
+            Level = SafetyLevel.Review,
+            Confidence = 50,
+            Reason = "Unknown file",
+            Explanation = "DevClean does not have enough information to determine whether this file is safe to delete.",
+            Risk = "Unknown",
+            Evidence = ["No rule matched"]
+        };
     }
 
-    private bool IsUserDocument(FileItem file)
+    private static bool IsUserDocument(string extension)
     {
-        string extension = file.Extension.ToLowerInvariant();
-
         return extension is
-            ".doc" or
-            ".docx" or
-            ".pdf" or
-            ".xls" or
-            ".xlsx" or
-            ".ppt" or
-            ".pptx" or
-            ".txt";
+            ".doc" or ".docx" or ".pdf" or ".xls" or ".xlsx" or
+            ".ppt" or ".pptx" or ".txt" or ".csv" or ".rtf";
     }
 }

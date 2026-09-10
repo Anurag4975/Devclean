@@ -8,62 +8,50 @@ x86/
 [Aa]rm/
 [Aa]rm64/
 build/
-bld/
-[Bb]uild[Oo]ut/
-
-# .NET Core
-project.lock.json
-project.fragment.lock.json
-artifacts/
-**/Properties/launchSettings.json
-
-# NuGet
-*.nupkg
-*.snupkg
-**/packages/*
-!**/packages/build/
-nuget.exe
-NuGet.Config
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
 # Visual Studio
 .vs/
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-*.userprefs
-*.psess
-*.vspsess
+.vscode/
 .idea/
-*.vcxproj.user
+*.userprefs
+*_i.c
+*_p.c
+*.nupkg
+*.snupkg
+*.nupkg.metadata
+*.sigdata
+*.pfx
+*.publishsettings
 
 # Rider
 .idea/
-*.sln.iml
 
-# VS Code
-.vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# NuGet
+packages/
+*.nuget.props
+*.nuget.targets
+
+# Publish / deploy
+app.publish/
+PublishScripts/
+*.appx
+*.msix
+*.msixbundle
+*.cer
+
+# Logs
+*.log
 
 # OS
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
-*.cab
-*.msi
-*.msix
-*.msm
-*.msp
+.DS_Store
 
-# Logs
-*.log
-logs/
-
-# DevClean local data (quarantine & scan caches must never be committed)
+# DevClean own data (never commit user quarantine or settings)
 .DevClean/
-**/.DevClean/
-*.devclean

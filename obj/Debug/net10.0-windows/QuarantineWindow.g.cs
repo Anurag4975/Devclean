@@ -67,7 +67,7 @@ namespace DevClean {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/DevClean;component/quarantinewindow.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/DevClean;V1.0.0.0;component/quarantinewindow.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\QuarantineWindow.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

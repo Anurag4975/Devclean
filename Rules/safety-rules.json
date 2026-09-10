@@ -1,0 +1,13 @@
+[
+  {
+    "Id": "example-custom-rule",
+    "PathContains": [ "\\myapp\\cache" ],
+    "Extensions": [],
+    "Level": "Safe",
+    "Confidence": 85,
+    "Reason": "MyApp cache",
+    "Explanation": "Add your own rules here. Any rule with an Id matching a built-in rule overrides it.",
+    "Risk": "Low",
+    "ScoreBonus": 50
+  }
+]

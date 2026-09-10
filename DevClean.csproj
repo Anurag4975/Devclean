@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -7,6 +7,28 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Platforms>AnyCPU</Platforms>
+
+    <!-- Versioning (increment before each Microsoft Store submission) -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>DevClean</Product>
+    <Company>DevClean</Company>
+    <Copyright>Copyright © 2026</Copyright>
+
+    <!-- For direct (non-Store) downloads, set these to true when publishing:
+         <PublishSingleFile>true</PublishSingleFile>
+         <SelfContained>false</SelfContained>
+         <RuntimeIdentifier>win-x64</RuntimeIdentifier> -->
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- External, community-extendable safety rules. Copied next to the .exe.
+         Condition prevents build errors if the Rules folder is ever missing
+         (built-in rules still apply). -->
+    <Content Include="Rules\**\*.json"
+             Condition="Exists('Rules')"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
 </Project>
