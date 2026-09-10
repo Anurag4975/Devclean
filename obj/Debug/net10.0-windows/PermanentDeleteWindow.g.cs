@@ -115,7 +115,7 @@ namespace DevClean {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/DevClean;V1.0.0.0;component/permanentdeletewindow.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/DevClean;component/permanentdeletewindow.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\PermanentDeleteWindow.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);
