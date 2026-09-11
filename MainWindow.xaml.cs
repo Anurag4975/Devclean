@@ -97,54 +97,54 @@ public partial class MainWindow : Window
         FilesScannedText.Text = "0"; CandidatesText.Text = "0"; SelectedText.Text = "0 B";
 
         try
-{
-    List<FileItem> files = await _scanner.ScanFilesAsync(
-        selected.Drive.RootDirectory.FullName,
-        count => Dispatcher.Invoke(() => ProgressText.Text = $"Scanning… {count:N0} files found…"),
-        _cancellationSource.Token);
-    _lastScanFiles = files;
-    FilesScannedText.Text = files.Count.ToString("N0");
+        {
+            List<FileItem> files = await _scanner.ScanFilesAsync(
+                selected.Drive.RootDirectory.FullName,
+                count => Dispatcher.Invoke(() => ProgressText.Text = $"Scanning… {count:N0} files found…"),
+                _cancellationSource.Token);
+            _lastScanFiles = files;
+            FilesScannedText.Text = files.Count.ToString("N0");
 
-    ProgressText.Text = "Analyzing safety…";
-    List<CleanupCandidate> candidates = _candidateDetector.FindCandidates(files)
-        .Concat(_candidateDetector.FindFolderCandidates(files))
-        .OrderByDescending(x => x.PriorityScore).ThenByDescending(x => x.Size).ToList();
-    CandidatesText.Text = candidates.Count.ToString("N0");
+            ProgressText.Text = "Analyzing safety…";
+            List<CleanupCandidate> candidates = _candidateDetector.FindCandidates(files)
+                .Concat(_candidateDetector.FindFolderCandidates(files))
+                .OrderByDescending(x => x.PriorityScore).ThenByDescending(x => x.Size).ToList();
+            CandidatesText.Text = candidates.Count.ToString("N0");
 
-    CancellationToken token = _cancellationSource.Token;
-    var results = new SafetyAnalysis[candidates.Count];
-    int processedCount = 0;
+            CancellationToken token = _cancellationSource.Token;
+            var results = new SafetyAnalysis[candidates.Count];
+            int processedCount = 0;
 
-    await Task.Run(() =>
-    {
-        Parallel.For(0, candidates.Count,
-            new ParallelOptions
+            await Task.Run(() =>
             {
-                CancellationToken = token,
-                MaxDegreeOfParallelism = Environment.ProcessorCount
-            },
-            i =>
-            {
-                results[i] = _analyzer.AnalyzeAsync(candidates[i].File, token).GetAwaiter().GetResult();
+                Parallel.For(0, candidates.Count,
+                    new ParallelOptions
+                    {
+                        CancellationToken = token,
+                        MaxDegreeOfParallelism = Environment.ProcessorCount
+                    },
+                    i =>
+                    {
+                        results[i] = _analyzer.AnalyzeAsync(candidates[i].File, token).GetAwaiter().GetResult();
 
-                int done = Interlocked.Increment(ref processedCount);
-                if (done % 250 == 0)
-                    Dispatcher.Invoke(() => ProgressText.Text = $"Analyzing… {done:N0}/{candidates.Count:N0}");
-            });
-    }, token);
+                        int done = Interlocked.Increment(ref processedCount);
+                        if (done % 250 == 0)
+                            Dispatcher.Invoke(() => ProgressText.Text = $"Analyzing… {done:N0}/{candidates.Count:N0}");
+                    });
+            }, token);
 
-    for (int i = 0; i < candidates.Count; i++)
-        _allCandidates.Add(new CandidateViewModel(candidates[i], results[i]));
+            for (int i = 0; i < candidates.Count; i++)
+                _allCandidates.Add(new CandidateViewModel(candidates[i], results[i]));
 
-    PopulateCategoryFilter();
-    ApplyFilters();
+            PopulateCategoryFilter();
+            ApplyFilters();
 
-    ScanProgressBar.IsIndeterminate = false; ScanProgressBar.Value = 100;
-    ProgressText.Text = $"Done — {files.Count:N0} files, {_allCandidates.Count:N0} candidates. Press Smart Clean.";
-    UpdateFreeSpace();
+            ScanProgressBar.IsIndeterminate = false; ScanProgressBar.Value = 100;
+            ProgressText.Text = $"Done — {files.Count:N0} files, {_allCandidates.Count:N0} candidates. Press Smart Clean.";
+            UpdateFreeSpace();
 
-    if (SimpleModeCheck.IsChecked == true) ApplySmartSelection(false);
-}
+            if (SimpleModeCheck.IsChecked == true) ApplySmartSelection(false);
+        }
         catch (OperationCanceledException) { ProgressText.Text = "Cancelled."; }
         finally { SetUiEnabled(true); }
     }
@@ -213,6 +213,28 @@ public partial class MainWindow : Window
 
     private void Filter_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (IsInitialized) ApplyFilters(); }
 
+    private void SelectAllHeaderCheckBox_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_updatingSelection) return;
+        _updatingSelection = true;
+        try
+        {
+            foreach (var c in _visibleCandidates)
+                if (c.Analysis.Level != SafetyLevel.DoNotDelete) c.IsSelected = true;
+        }
+        finally { _updatingSelection = false; }
+        UpdateSelectionDisplay();
+    }
+
+    private void SelectAllHeaderCheckBox_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_updatingSelection) return;
+        _updatingSelection = true;
+        try { foreach (var c in _visibleCandidates) c.IsSelected = false; }
+        finally { _updatingSelection = false; }
+        UpdateSelectionDisplay();
+    }
+
     private void SelectAllCheckBox_Checked(object sender, RoutedEventArgs e)
     {
         if (_updatingSelection) return;
@@ -261,6 +283,9 @@ public partial class MainWindow : Window
             DetailEvidenceText.Text = c.Analysis.Evidence.Count > 0
                 ? "Evidence: " + string.Join(" • ", c.Analysis.Evidence)
                 : string.Empty;
+            AiFileVerdictText.Text = string.Empty;
+            AiFileConsequenceText.Text = string.Empty;
+            AiFileHowToText.Text = string.Empty;
         }
     }
 
@@ -343,19 +368,31 @@ public partial class MainWindow : Window
     // =========================================================
     // APPS TAB
     // =========================================================
-    private void RefreshAppsButton_Click(object sender, RoutedEventArgs e)
+    private async void RefreshAppsButton_Click(object sender, RoutedEventArgs e)
     {
-        _apps.Clear();
-        List<InstalledApplication> list = InstalledAppScanner.Scan();
-        foreach (var a in list) _apps.Add(new AppRow(a));
-        AppsStatusText.Text = $"{list.Count:N0} installed applications. Select one and press Uninstall to launch its own uninstaller.";
+        RefreshAppsButton.IsEnabled = false;
+        AppsStatusText.Text = "Scanning installed applications…";
+        try
+        {
+            List<InstalledApplication> list = await Task.Run(() => InstalledAppScanner.Scan());
+            _apps.Clear();
+            foreach (var a in list) _apps.Add(new AppRow(a));
+            AppsStatusText.Text = $"{list.Count:N0} installed applications. Select one and press Uninstall to launch its own uninstaller.";
+        }
+        finally { RefreshAppsButton.IsEnabled = true; }
     }
 
-    private void UninstallAppButton_Click(object sender, RoutedEventArgs e)
+    private async void UninstallAppButton_Click(object sender, RoutedEventArgs e)
     {
         if (AppsListView.SelectedItem is not AppRow row) { MessageBox.Show("Select an app."); return; }
         if (MessageBox.Show($"Launch the uninstaller for '{row.App.Name}'?", "Uninstall", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
-        if (!InstalledAppScanner.Uninstall(row.App)) MessageBox.Show("Could not launch uninstaller.");
+        UninstallAppButton.IsEnabled = false;
+        try
+        {
+            bool started = await Task.Run(() => InstalledAppScanner.Uninstall(row.App));
+            if (!started) MessageBox.Show("Could not launch uninstaller.");
+        }
+        finally { UninstallAppButton.IsEnabled = true; }
     }
 
     // =========================================================
@@ -485,52 +522,76 @@ public partial class MainWindow : Window
 
     private class AiRow { public string Path { get; set; } = ""; public string Reason { get; set; } = ""; }
 
-            // === THEME SWITCH ===
-        private bool _isDarkMode;
+    // === THEME SWITCH ===
+    private bool _isDarkMode;
 
-        private void ThemeToggleBtn_Click(object sender, RoutedEventArgs e)
+    private void ThemeToggleBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _isDarkMode = !_isDarkMode;
+        ApplyTheme(_isDarkMode);
+        ThemeToggleBtn.Content = _isDarkMode ? "☀️" : "🌙";
+        ThemeBox.SelectedIndex = _isDarkMode ? 1 : 0;
+    }
+
+    private void ThemeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ThemeBox.SelectedItem is ComboBoxItem item && item.Content is string txt)
         {
-            _isDarkMode = !_isDarkMode;
+            _isDarkMode = txt == "Dark";
             ApplyTheme(_isDarkMode);
             ThemeToggleBtn.Content = _isDarkMode ? "☀️" : "🌙";
-            ThemeBox.SelectedIndex = _isDarkMode ? 1 : 0;
         }
+    }
 
-        private void ThemeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void ApplyTheme(bool dark)
+    {
+        var dict = Application.Current.Resources.MergedDictionaries.FirstOrDefault();
+        if (dict == null) return;
+
+        if (dark)
         {
-            if (ThemeBox.SelectedItem is ComboBoxItem item && item.Content is string txt)
-            {
-                _isDarkMode = txt == "Dark";
-                ApplyTheme(_isDarkMode);
-                ThemeToggleBtn.Content = _isDarkMode ? "☀️" : "🌙";
-            }
+            dict["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(28, 28, 30));
+            dict["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(44, 44, 46));
+            dict["CardAltBrush"] = new SolidColorBrush(Color.FromRgb(58, 58, 60));
+            dict["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(240, 240, 242));
+            dict["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(170, 170, 178));
+            dict["BorderBrush"] = new SolidColorBrush(Color.FromRgb(58, 58, 60));
+            dict["TabActiveBrush"] = new SolidColorBrush(Color.FromRgb(20, 60, 100));
         }
-
-        private void ApplyTheme(bool dark)
+        else
         {
-            var dict = Application.Current.Resources.MergedDictionaries.FirstOrDefault();
-            if (dict == null) return;
-
-            if (dark)
-            {
-                dict["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(28, 28, 30));
-                dict["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(44, 44, 46));
-                dict["CardAltBrush"] = new SolidColorBrush(Color.FromRgb(58, 58, 60));
-                dict["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(240, 240, 242));
-                dict["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(170, 170, 178));
-                dict["BorderBrush"] = new SolidColorBrush(Color.FromRgb(58, 58, 60));
-                dict["TabActiveBrush"] = new SolidColorBrush(Color.FromRgb(20, 60, 100));
-            }
-            else
-            {
-                dict["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(240, 242, 245));
-                dict["CardBackgroundBrush"] = new SolidColorBrush(Colors.White);
-                dict["CardAltBrush"] = new SolidColorBrush(Color.FromRgb(248, 249, 250));
-                dict["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(26, 26, 31));
-                dict["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(90, 92, 102));
-                dict["BorderBrush"] = new SolidColorBrush(Color.FromRgb(226, 229, 234));
-                dict["TabActiveBrush"] = new SolidColorBrush(Color.FromRgb(232, 240, 254));
-            }
+            dict["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(240, 242, 245));
+            dict["CardBackgroundBrush"] = new SolidColorBrush(Colors.White);
+            dict["CardAltBrush"] = new SolidColorBrush(Color.FromRgb(248, 249, 250));
+            dict["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(26, 26, 31));
+            dict["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(90, 92, 102));
+            dict["BorderBrush"] = new SolidColorBrush(Color.FromRgb(226, 229, 234));
+            dict["TabActiveBrush"] = new SolidColorBrush(Color.FromRgb(232, 240, 254));
         }
+    }
 
+    private async void CheckWithAiButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (CandidateList.SelectedItem is not CandidateViewModel c) { MessageBox.Show("Select an item first."); return; }
+        string key = ApiKeyBox.Password;
+        if (string.IsNullOrWhiteSpace(key)) { AiFileVerdictText.Text = "Enter and save your API key on the AI tab first."; return; }
+
+        CheckWithAiButton.IsEnabled = false;
+        AiFileVerdictText.Text = "Asking AI…";
+        AiFileConsequenceText.Text = string.Empty;
+        AiFileHowToText.Text = string.Empty;
+        try
+        {
+            AiFileVerdict verdict = await MistralCleanAdvisor.AnalyzeSingleFileAsync(c.Candidate.File, key);
+            if (!verdict.Success)
+            {
+                AiFileVerdictText.Text = "AI check failed: " + verdict.RawError;
+                return;
+            }
+            AiFileVerdictText.Text = verdict.IsSafe ? "✅ Safe to delete" : "⚠️ Review before deleting";
+            AiFileConsequenceText.Text = "If deleted: " + verdict.Consequence;
+            AiFileHowToText.Text = "Safe removal: " + verdict.SafeDeletionSteps;
+        }
+        finally { CheckWithAiButton.IsEnabled = true; }
+    }
 }

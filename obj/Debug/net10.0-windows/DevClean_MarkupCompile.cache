@@ -12,9 +12,9 @@ TRACE;DEBUG;NET;NET10_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_O
 D:\DevClean\App.xaml
 41803227664
 1659366470
-32-1971353429
+34-405038228
 206248478787
 MainWindow.xaml;PermanentDeleteWindow.xaml;QuarantineWindow.xaml;Theme.xaml;
 
-False
+True
 

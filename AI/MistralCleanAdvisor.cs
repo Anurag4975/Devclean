@@ -22,6 +22,16 @@ public sealed class AiCleanPlan
     public bool Success => string.IsNullOrEmpty(RawError);
 }
 
+/// <summary>Result of a single-file AI safety check (Clean tab "Check with AI").</summary>
+public sealed class AiFileVerdict
+{
+    public bool IsSafe { get; init; }
+    public string Consequence { get; init; } = string.Empty;
+    public string SafeDeletionSteps { get; init; } = string.Empty;
+    public string RawError { get; init; } = string.Empty;
+    public bool Success => string.IsNullOrEmpty(RawError);
+}
+
 /// <summary>
 /// Groq AI batch advisor. Sends a capped text manifest of large/old files
 /// to Groq and gets back a list of paths it recommends quarantining, with reasons.
@@ -244,6 +254,174 @@ public static class MistralCleanAdvisor
         catch (Exception ex)
         {
             return new AiCleanPlan
+            {
+                RawError = ex.Message
+            };
+        }
+    }
+
+    /// <summary>
+    /// Single-file AI safety check, used by the "Check with AI" button on the Clean tab.
+    /// Asks Groq whether this specific file/folder is safe to delete, what happens if it's
+    /// deleted, and how to remove it safely. Same retry/error handling shape as AnalyzeAsync.
+    /// </summary>
+    public static async Task<AiFileVerdict> AnalyzeSingleFileAsync(
+        FileItem file,
+        string apiKey,
+        string model = DefaultModel,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return new AiFileVerdict
+            {
+                RawError = "No Groq API key set. Add it in the AI tab."
+            };
+        }
+
+        string details =
+            $"path: {file.Path}\n" +
+            $"size_bytes: {file.Size}\n" +
+            $"extension: {file.Extension}\n" +
+            $"last_modified: {file.LastModified:yyyy-MM-dd}\n" +
+            $"is_hidden: {file.IsHidden}\n" +
+            $"is_system: {file.IsSystem}";
+
+        string systemPrompt =
+            "You are a conservative Windows disk-cleanup safety advisor. " +
+            "Given details about ONE specific file or folder, return ONLY valid JSON with exactly these keys: " +
+            "\"safe\" (boolean — true only if you are confident it can be deleted with no meaningful risk), " +
+            "\"consequence\" (one or two plain-English sentences describing what happens if the user deletes this — " +
+            "what breaks, what regenerates automatically, or what data is lost), " +
+            "\"steps\" (one or two plain-English sentences on the safest way to remove it, e.g. quarantine first, " +
+            "close the related app first, or back it up first). " +
+            "Be conservative: if you are not confident, set safe to false and explain why in consequence. " +
+            "No markdown, no commentary, JSON only.";
+
+        var payload = new
+        {
+            model,
+            temperature = 0.1,
+            response_format = new { type = "json_object" },
+            messages = new[]
+            {
+                new
+                {
+                    role = "system",
+                    content = systemPrompt
+                },
+                new
+                {
+                    role = "user",
+                    content = details
+                }
+            }
+        };
+
+        const int maxRetries = 4;
+
+        HttpResponseMessage? response = null;
+        string body = string.Empty;
+
+        try
+        {
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
+            {
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    Endpoint);
+
+                request.Headers.Add(
+                    "Authorization",
+                    $"Bearer {apiKey}");
+
+                request.Content = new StringContent(
+                    JsonSerializer.Serialize(payload),
+                    Encoding.UTF8,
+                    "application/json");
+
+                response = await Http.SendAsync(request, ct);
+
+                body = await response.Content.ReadAsStringAsync(ct);
+
+                if (response.StatusCode != System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    break;
+                }
+
+                if (attempt == maxRetries)
+                {
+                    return new AiFileVerdict
+                    {
+                        RawError =
+                            $"Groq is rate-limiting this API key (429) after {maxRetries} retries. " +
+                            "Try again in a minute."
+                    };
+                }
+
+                TimeSpan delay =
+                    response.Headers.RetryAfter?.Delta
+                    ?? TimeSpan.FromSeconds(Math.Pow(2, attempt + 1));
+
+                await Task.Delay(delay, ct);
+            }
+
+            if (response is null || !response.IsSuccessStatusCode)
+            {
+                int status =
+                    response is null
+                        ? 0
+                        : (int)response.StatusCode;
+
+                return new AiFileVerdict
+                {
+                    RawError =
+                        $"Groq API error {status}: {Truncate(body, 300)}"
+                };
+            }
+
+            using JsonDocument doc =
+                JsonDocument.Parse(body);
+
+            string content =
+                doc.RootElement
+                    .GetProperty("choices")[0]
+                    .GetProperty("message")
+                    .GetProperty("content")
+                    .GetString()
+                ?? "{}";
+
+            using JsonDocument result =
+                JsonDocument.Parse(content);
+
+            bool safe = result.RootElement.TryGetProperty("safe", out var safeEl)
+                && safeEl.ValueKind == JsonValueKind.True;
+
+            string consequence = result.RootElement.TryGetProperty("consequence", out var cEl)
+                ? (cEl.GetString() ?? string.Empty)
+                : string.Empty;
+
+            string steps = result.RootElement.TryGetProperty("steps", out var sEl)
+                ? (sEl.GetString() ?? string.Empty)
+                : string.Empty;
+
+            return new AiFileVerdict
+            {
+                IsSafe = safe,
+                Consequence = string.IsNullOrWhiteSpace(consequence) ? "No details returned." : consequence,
+                SafeDeletionSteps = string.IsNullOrWhiteSpace(steps) ? "Use Quarantine so it's fully restorable." : steps
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new AiFileVerdict
+            {
+                RawError = "AI request timed out."
+            };
+        }
+        catch (Exception ex)
+        {
+            return new AiFileVerdict
             {
                 RawError = ex.Message
             };
