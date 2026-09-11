@@ -20,7 +20,6 @@ D:\DevClean\bin\Debug\net10.0-windows\DevClean.deps.json
 D:\DevClean\bin\Debug\net10.0-windows\DevClean.runtimeconfig.json
 D:\DevClean\bin\Debug\net10.0-windows\DevClean.dll
 D:\DevClean\bin\Debug\net10.0-windows\DevClean.pdb
-D:\DevClean\obj\Debug\net10.0-windows\MainWindow.baml
 D:\DevClean\obj\Debug\net10.0-windows\PermanentDeleteWindow.baml
 D:\DevClean\obj\Debug\net10.0-windows\QuarantineWindow.baml
 D:\DevClean\obj\Debug\net10.0-windows\Theme.baml
@@ -30,7 +29,10 @@ D:\DevClean\obj\Debug\net10.0-windows\PermanentDeleteWindow.g.cs
 D:\DevClean\obj\Debug\net10.0-windows\QuarantineWindow.g.cs
 D:\DevClean\obj\Debug\net10.0-windows\App.g.cs
 D:\DevClean\obj\Debug\net10.0-windows\DevClean_Content.g.cs
+D:\DevClean\obj\Debug\net10.0-windows\GeneratedInternalTypeHelper.g.cs
 D:\DevClean\obj\Debug\net10.0-windows\DevClean_MarkupCompile.cache
+D:\DevClean\obj\Debug\net10.0-windows\DevClean_MarkupCompile.lref
+D:\DevClean\obj\Debug\net10.0-windows\MainWindow.baml
 D:\DevClean\obj\Debug\net10.0-windows\DevClean.g.resources
 D:\DevClean\obj\Debug\net10.0-windows\DevClean.GeneratedMSBuildEditorConfig.editorconfig
 D:\DevClean\obj\Debug\net10.0-windows\DevClean.AssemblyInfoInputs.cache

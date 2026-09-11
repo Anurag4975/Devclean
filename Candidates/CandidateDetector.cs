@@ -11,6 +11,11 @@ namespace DevClean.Candidates;
 ///  - SafetyRuleDatabase ScoreBonus is applied to known modern-junk categories.
 ///  - Age-based scoring (older files rank higher).
 ///  - Folder candidates now get a priority score from matching rules.
+///  - The folder-candidate directory walk now skips protected system trees
+///    (Windows, WinSxS, etc.) and doesn't descend past known dev-cache folders
+///    (node_modules, .git, venv, etc.) — this walk previously duplicated the
+///    scanner's own traversal with none of its protections, which was a major
+///    source of lag on large/dev-heavy drives.
 /// All original public signatures are preserved.
 /// </summary>
 public class CandidateDetector
@@ -124,6 +129,7 @@ public class CandidateDetector
 
         List<string> directories = EnumerateDirectoriesSafe(driveRoot)
             .Where(path => !IsDevCleanPath(path))
+            .Where(path => !IsProtectedSystemPath(path))
             .Where(path => !UserPreferenceStore.Instance.IsSuppressed(path)) // learning loop
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -217,6 +223,7 @@ public class CandidateDetector
             foreach (string directory in subDirectories)
             {
                 if (IsDevCleanPath(directory)) continue;
+                if (IsProtectedSystemPath(directory)) continue;
                 DirectoryInfo info;
                 try
                 {
@@ -225,9 +232,40 @@ public class CandidateDetector
                 }
                 catch { continue; }
                 yield return directory;
-                pending.Push(directory);
+                // Still yield the container folder itself (so it shows up as a candidate),
+                // but don't push its insides onto the stack — no point walking thousands
+                // of nested node_modules/.git subdirectories a second time.
+                if (!IsContainerFolder(directory)) pending.Push(directory);
             }
         }
+    }
+
+    private static readonly string[] ProtectedSegments =
+    [
+        $"{Path.DirectorySeparatorChar}Windows{Path.DirectorySeparatorChar}",
+        $"{Path.DirectorySeparatorChar}$Recycle.Bin{Path.DirectorySeparatorChar}",
+        $"{Path.DirectorySeparatorChar}System Volume Information{Path.DirectorySeparatorChar}",
+        $"{Path.DirectorySeparatorChar}WindowsApps{Path.DirectorySeparatorChar}",
+        $"{Path.DirectorySeparatorChar}Recovery{Path.DirectorySeparatorChar}",
+    ];
+
+    private static bool IsProtectedSystemPath(string path)
+    {
+        foreach (string segment in ProtectedSegments)
+            if (path.Contains(segment, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private static readonly HashSet<string> ContainerFolderNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "node_modules", ".git", "venv", ".venv", "__pycache__", ".pytest_cache", ".mypy_cache",
+        "dist", "build", "target", "obj", ".next", ".nuxt", ".gradle", ".cache", ".nuget", "packages"
+    };
+
+    private static bool IsContainerFolder(string path)
+    {
+        string name = Path.GetFileName(path.TrimEnd('\\', '/'));
+        return ContainerFolderNames.Contains(name);
     }
 
     private static bool IsDevCleanPath(string path)

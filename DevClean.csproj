@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -15,7 +15,7 @@
     <Product>DevClean</Product>
     <Company>DevClean</Company>
     <Copyright>Copyright © 2026</Copyright>
-
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <!-- For direct (non-Store) downloads, set these to true when publishing:
          <PublishSingleFile>true</PublishSingleFile>
          <SelfContained>false</SelfContained>

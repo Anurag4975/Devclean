@@ -13,6 +13,8 @@ using DevClean.Settings;
 using DevClean.Smart;
 using System.Windows.Media;
 namespace DevClean;
+using System.Threading;
+using System.Threading.Tasks;
 
 public partial class MainWindow : Window
 {
@@ -95,35 +97,54 @@ public partial class MainWindow : Window
         FilesScannedText.Text = "0"; CandidatesText.Text = "0"; SelectedText.Text = "0 B";
 
         try
-        {
-            List<FileItem> files = await _scanner.ScanFilesAsync(
-                selected.Drive.RootDirectory.FullName,
-                count => Dispatcher.Invoke(() => ProgressText.Text = $"Scanning… {count:N0} files found…"),
-                _cancellationSource.Token);
-            _lastScanFiles = files;
-            FilesScannedText.Text = files.Count.ToString("N0");
+{
+    List<FileItem> files = await _scanner.ScanFilesAsync(
+        selected.Drive.RootDirectory.FullName,
+        count => Dispatcher.Invoke(() => ProgressText.Text = $"Scanning… {count:N0} files found…"),
+        _cancellationSource.Token);
+    _lastScanFiles = files;
+    FilesScannedText.Text = files.Count.ToString("N0");
 
-            ProgressText.Text = "Analyzing safety…";
-            List<CleanupCandidate> candidates = _candidateDetector.FindCandidates(files)
-                .Concat(_candidateDetector.FindFolderCandidates(files))
-                .OrderByDescending(x => x.PriorityScore).ThenByDescending(x => x.Size).ToList();
-            CandidatesText.Text = candidates.Count.ToString("N0");
+    ProgressText.Text = "Analyzing safety…";
+    List<CleanupCandidate> candidates = _candidateDetector.FindCandidates(files)
+        .Concat(_candidateDetector.FindFolderCandidates(files))
+        .OrderByDescending(x => x.PriorityScore).ThenByDescending(x => x.Size).ToList();
+    CandidatesText.Text = candidates.Count.ToString("N0");
 
-            foreach (CleanupCandidate c in candidates)
+    CancellationToken token = _cancellationSource.Token;
+    var results = new SafetyAnalysis[candidates.Count];
+    int processedCount = 0;
+
+    await Task.Run(() =>
+    {
+        Parallel.For(0, candidates.Count,
+            new ParallelOptions
             {
-                _cancellationSource.Token.ThrowIfCancellationRequested();
-                SafetyAnalysis a = await _analyzer.AnalyzeAsync(c.File, _cancellationSource.Token);
-                _allCandidates.Add(new CandidateViewModel(c, a));
-            }
-            PopulateCategoryFilter();
-            ApplyFilters();
+                CancellationToken = token,
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            },
+            i =>
+            {
+                results[i] = _analyzer.AnalyzeAsync(candidates[i].File, token).GetAwaiter().GetResult();
 
-            ScanProgressBar.IsIndeterminate = false; ScanProgressBar.Value = 100;
-            ProgressText.Text = $"Done — {files.Count:N0} files, {_allCandidates.Count:N0} candidates. Press Smart Clean.";
-            UpdateFreeSpace();
+                int done = Interlocked.Increment(ref processedCount);
+                if (done % 250 == 0)
+                    Dispatcher.Invoke(() => ProgressText.Text = $"Analyzing… {done:N0}/{candidates.Count:N0}");
+            });
+    }, token);
 
-            if (SimpleModeCheck.IsChecked == true) ApplySmartSelection(false);
-        }
+    for (int i = 0; i < candidates.Count; i++)
+        _allCandidates.Add(new CandidateViewModel(candidates[i], results[i]));
+
+    PopulateCategoryFilter();
+    ApplyFilters();
+
+    ScanProgressBar.IsIndeterminate = false; ScanProgressBar.Value = 100;
+    ProgressText.Text = $"Done — {files.Count:N0} files, {_allCandidates.Count:N0} candidates. Press Smart Clean.";
+    UpdateFreeSpace();
+
+    if (SimpleModeCheck.IsChecked == true) ApplySmartSelection(false);
+}
         catch (OperationCanceledException) { ProgressText.Text = "Cancelled."; }
         finally { SetUiEnabled(true); }
     }
