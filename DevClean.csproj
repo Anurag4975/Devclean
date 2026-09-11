@@ -20,6 +20,13 @@
          <PublishSingleFile>true</PublishSingleFile>
          <SelfContained>false</SelfContained>
          <RuntimeIdentifier>win-x64</RuntimeIdentifier> -->
+
+    <!-- STORE_BUILD compiles OUT the elevated "Format Drive" feature entirely (no code,
+         no button, no XAML-backed handler) so the Store binary never contains it.
+         Default is defined = Store-safe. To build the power-user/sideload version with
+         Format Drive included, pass: dotnet build -p:DefineConstants=PORTABLE_BUILD
+         which overrides this and is intentionally NOT the default. -->
+    <DefineConstants Condition="'$(DefineConstants)'==''">STORE_BUILD</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

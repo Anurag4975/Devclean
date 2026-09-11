@@ -18,6 +18,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
+using System.Security.Cryptography;
+using System.Text;
 
 [ComImport]
 [Guid("3E68D4BD-7135-4D10-8018-9FB6D9F33FA1")]
@@ -58,6 +60,12 @@ public partial class MainWindow : Window
         foreach (DriveInfo d in DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Fixed))
             FormatDriveCombo.Items.Add(d.Name);
         if (FormatDriveCombo.Items.Count > 0) FormatDriveCombo.SelectedIndex = 0;
+#if STORE_BUILD
+        // Store/MSIX apps run sandboxed and cannot elevate (Verb="runas" will simply fail
+        // certification and/or fail at runtime), so this entire destructive feature is both
+        // compiled out below and hidden here as defense in depth.
+        AdvancedFormatGroup.Visibility = Visibility.Collapsed;
+#endif
     }
 
     // =========================================================
@@ -409,11 +417,34 @@ public partial class MainWindow : Window
     // =========================================================
     // AI TAB (Mistral)
     // =========================================================
-    private void LoadApiKey() { try { if (File.Exists(ApiKeyFile)) ApiKeyBox.Password = File.ReadAllText(ApiKeyFile); } catch { } }
+    // API key is protected with Windows DPAPI, scoped to the current Windows user account.
+    // This means the encrypted bytes on disk are meaningless if copied to another machine or
+    // read by another user account — only the same Windows user profile can decrypt them.
+    private void LoadApiKey()
+    {
+        try
+        {
+            if (!File.Exists(ApiKeyFile)) return;
+            byte[] encrypted = File.ReadAllBytes(ApiKeyFile);
+            byte[] plain = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+            ApiKeyBox.Password = Encoding.UTF8.GetString(plain);
+        }
+        catch
+        {
+            // Corrupt, foreign, or unreadable key file — leave the box empty rather than crash.
+        }
+    }
 
     private void SaveKeyButton_Click(object sender, RoutedEventArgs e)
     {
-        try { Directory.CreateDirectory(AppDataDir); File.WriteAllText(ApiKeyFile, ApiKeyBox.Password); AiStatusText.Text = "API key saved."; }
+        try
+        {
+            Directory.CreateDirectory(AppDataDir);
+            byte[] plain = Encoding.UTF8.GetBytes(ApiKeyBox.Password);
+            byte[] encrypted = ProtectedData.Protect(plain, null, DataProtectionScope.CurrentUser);
+            File.WriteAllBytes(ApiKeyFile, encrypted);
+            AiStatusText.Text = "API key saved (encrypted to your Windows account).";
+        }
         catch (Exception ex) { MessageBox.Show("Could not save key: " + ex.Message); }
     }
 
@@ -480,6 +511,13 @@ public partial class MainWindow : Window
 
     private void FormatButton_Click(object sender, RoutedEventArgs e)
     {
+#if STORE_BUILD
+        // Compiled out entirely in the Store build: no elevated process launch exists
+        // in this binary at all, not merely a hidden button. Unreachable anyway since
+        // AdvancedFormatGroup is collapsed, but kept as a safety net in case of future
+        // XAML changes that re-expose the button.
+        MessageBox.Show("Format Drive isn't available in this build. Use Windows' built-in Disk Management instead.");
+#else
         if (FormatDriveCombo.SelectedItem is not string drive) return;
         string letter = drive.TrimEnd('\\', ':');
         if (MessageBox.Show(
@@ -492,6 +530,7 @@ public partial class MainWindow : Window
             { UseShellExecute = true, Verb = "runas" });
         }
         catch (Exception ex) { MessageBox.Show("Could not start format: " + ex.Message); }
+#endif
     }
 
     // =========================================================

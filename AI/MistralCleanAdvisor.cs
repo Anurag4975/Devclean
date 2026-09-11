@@ -45,6 +45,22 @@ public sealed class AiFileVerdict
 /// </summary>
 public static class MistralCleanAdvisor
 {
+    /// <summary>
+    /// Replaces the Windows account name segment of a path (C:\Users\&lt;name&gt;\...) with a
+    /// generic placeholder before the path is sent to a third-party AI provider. Falls back to
+    /// returning the path unchanged if it doesn't match the expected \Users\&lt;name&gt; shape.
+    /// </summary>
+    private static string RedactUserName(string path)
+    {
+        const string marker = @"\Users\";
+        int start = path.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (start < 0) return path;
+        int nameStart = start + marker.Length;
+        int nameEnd = path.IndexOf('\\', nameStart);
+        if (nameEnd < 0) return path;
+        return string.Concat(path.AsSpan(0, nameStart), "user", path.AsSpan(nameEnd));
+    }
+
     private const string Endpoint =
         "https://api.groq.com/openai/v1/chat/completions";
 
@@ -85,13 +101,20 @@ public static class MistralCleanAdvisor
             .Take(maxFilesPerScan)
             .ToList();
 
+        // Privacy: the Windows username almost always appears in the path (C:\Users\<name>\...)
+        // and would otherwise leave the device inside a third-party AI request. Replace it with
+        // a placeholder before sending, and map recommended paths back to the real path afterward
+        // so quarantine actions still work against the real file.
+        var redactedToReal = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var manifest = new StringBuilder();
         manifest.AppendLine("path\tsize_bytes\text\tlast_modified");
 
         foreach (FileItem f in subset)
         {
+            string redactedPath = RedactUserName(f.Path);
+            redactedToReal[redactedPath] = f.Path;
             manifest.AppendLine(
-                $"{f.Path}\t{f.Size}\t{f.Extension}\t{f.LastModified:yyyy-MM-dd}");
+                $"{redactedPath}\t{f.Size}\t{f.Extension}\t{f.LastModified:yyyy-MM-dd}");
         }
 
         string systemPrompt =
@@ -226,6 +249,9 @@ public static class MistralCleanAdvisor
 
                     if (!string.IsNullOrWhiteSpace(p))
                     {
+                        // Map the (possibly redacted) path the AI echoed back to the real,
+                        // on-disk path so the Clean tab can actually find and quarantine it.
+                        p = redactedToReal.TryGetValue(p, out string? real) ? real : p;
                         recommended.Add(
                             new AiRecommendedItem
                             {
@@ -280,7 +306,7 @@ public static class MistralCleanAdvisor
         }
 
         string details =
-            $"path: {file.Path}\n" +
+            $"path: {RedactUserName(file.Path)}\n" +
             $"size_bytes: {file.Size}\n" +
             $"extension: {file.Extension}\n" +
             $"last_modified: {file.LastModified:yyyy-MM-dd}\n" +

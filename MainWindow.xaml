@@ -251,7 +251,7 @@
                                 </ComboBox>
                             </StackPanel>
                         </GroupBox>
-                        <GroupBox Header="Advanced" Style="{StaticResource CardGroup}" BorderBrush="#FEDCDC">
+                        <GroupBox x:Name="AdvancedFormatGroup" Header="Advanced" Style="{StaticResource CardGroup}" BorderBrush="#FEDCDC">
                             <StackPanel>
                                 <TextBlock Text="⚠️ Format Drive — DESTROYS ALL DATA" Foreground="{StaticResource DangerButtonBrush}" FontWeight="SemiBold" Margin="0,0,0,6"/>
                                 <Grid>
@@ -263,7 +263,7 @@
                                     <ComboBox x:Name="FormatDriveCombo" Grid.Column="0" MinWidth="120" FontSize="13"/>
                                     <Button x:Name="FormatButton" Grid.Column="2" Content="FORMAT" Click="FormatButton_Click" Style="{StaticResource DangerButton}" Margin="10,0,0,0"/>
                                 </Grid>
-                                <TextBlock Text="Hidden in Microsoft Store builds." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,0"/>
+                                <TextBlock Text="Not available in Microsoft Store builds." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,0"/>
                             </StackPanel>
                         </GroupBox>
                         <Button x:Name="SaveSettingsButton" Content="Save All Settings" Click="SaveSettingsButton_Click" Style="{StaticResource PrimaryButton}" Margin="0,0,0,16" HorizontalAlignment="Left"/>
