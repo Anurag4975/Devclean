@@ -621,29 +621,29 @@ public partial class MainWindow : Window
 
         var result = await context.RequestPurchaseAsync(SupportDeveloperProductId);
 
-        switch (result.Status)
-        {
-            case StorePurchaseStatus.Succeeded:
-                MessageBox.Show("Thank you so much for supporting DevClean! 💙", "Thanks!");
-                break;
-            case StorePurchaseStatus.AlreadyPurchased:
-                MessageBox.Show("You've already supported DevClean — thank you again!", "Thanks!");
-                break;
-            case StorePurchaseStatus.NotPurchased:
-                break;
-            case StorePurchaseStatus.NetworkError:
-                MessageBox.Show("Network error — please check your connection and try again.");
-                break;
-            default:
-                MessageBox.Show("Something went wrong with the purchase. Please try again later.");
-                break;
-        }
-            }
-            catch (Exception ex)
+            switch (result.Status)
             {
-                MessageBox.Show("Could not open the purchase dialog: " + ex.Message);
+                case StorePurchaseStatus.Succeeded:
+                    MessageBox.Show("Thank you so much for supporting DevClean! 💙", "Thanks!");
+                    break;
+                case StorePurchaseStatus.AlreadyPurchased:
+                    MessageBox.Show("You've already supported DevClean — thank you again!", "Thanks!");
+                    break;
+                case StorePurchaseStatus.NotPurchased:
+                    break;
+                case StorePurchaseStatus.NetworkError:
+                    MessageBox.Show("Network error — please check your connection and try again.");
+                    break;
+                default:
+                    MessageBox.Show("Something went wrong with the purchase. Please try again later.");
+                    break;
             }
-                finally { SupportDeveloperButton.IsEnabled = true; }
-    }
-          }   
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Could not open the purchase dialog: " + ex.Message);
+                }
+                    finally { SupportDeveloperButton.IsEnabled = true; }
+        }
+}   
 
