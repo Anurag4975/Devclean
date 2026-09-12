@@ -9,7 +9,8 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize"
         WindowStyle="SingleBorderWindow"
-        Background="{StaticResource WindowBackgroundBrush}">
+        Icon="pack://siteoforigin:,,,/Assets/AppIcon.ico"
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -21,8 +22,8 @@
 
         <!-- HEADER -->
         <Border Grid.Row="0"
-                Background="{StaticResource AccentColorLight}"
-                BorderBrush="{StaticResource DangerBrush}"
+                Background="{DynamicResource AccentColorLight}"
+                BorderBrush="{DynamicResource DangerBrush}"
                 BorderThickness="0,0,0,0"
                 CornerRadius="{StaticResource CardRadius}"
                 Padding="18,14"
@@ -32,14 +33,14 @@
                     <TextBlock Text="&#xE7BA;"
                                FontFamily="Segoe MDL2 Assets"
                                FontSize="20"
-                               Foreground="{StaticResource DangerBrush}"
+                               Foreground="{DynamicResource DangerBrush}"
                                VerticalAlignment="Center"
                                Margin="0,0,10,0"/>
                     <TextBlock Text="Permanent Deletion" Style="{StaticResource TitleText}" FontSize="22"/>
                 </StackPanel>
                 <TextBlock x:Name="WarningText"
                            Text="This action cannot be undone."
-                           Foreground="{StaticResource DangerBrush}"
+                           Foreground="{DynamicResource DangerBrush}"
                            FontWeight="SemiBold"
                            FontSize="13.5"
                            Margin="30,4,0,0"/>
@@ -114,7 +115,7 @@
             <TextBlock x:Name="BottomWarningText"
                        VerticalAlignment="Center"
                        Text="These files will be permanently deleted."
-                       Foreground="{StaticResource DangerBrush}"
+                       Foreground="{DynamicResource DangerBrush}"
                        FontWeight="SemiBold"/>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

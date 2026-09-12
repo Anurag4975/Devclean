@@ -4,6 +4,7 @@
         xmlns:conv="clr-namespace:DevClean.Converters"
         Title="DevClean" Height="680" Width="1000" MinHeight="640" MinWidth="960"
         Background="{DynamicResource AppBackgroundBrush}"
+        Icon="pack://siteoforigin:,,,/Assets/AppIcon.ico"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
@@ -26,12 +27,12 @@
 
             <!-- Logo + Title -->
             <StackPanel Grid.Column="0" Orientation="Horizontal">
-                <Border Width="36" Height="36" CornerRadius="8" Background="{StaticResource PrimaryButtonBrush}"
-                        VerticalAlignment="Center" Margin="0,0,10,0" ClipToBounds="True">
-                    <Image Source="/Assets/AppIcon.png" Width="26" Height="26"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Stretch="Uniform"/>
-                </Border>
+                <!-- The logo is already a filled, colored mark (not a white glyph), so it
+                     sits directly on the header instead of inside a colored chip — a solid
+                     background behind it would just blend into the logo's own fill color. -->
+                <Image Source="pack://siteoforigin:,,,/Assets/AppIcon.png" Width="32" Height="32"
+                       VerticalAlignment="Center" Margin="0,0,10,0"
+                       Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}">DevClean</TextBlock>
                     <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">Safe cleanup with undo</TextBlock>
@@ -124,20 +125,20 @@
                             <GroupBox Header="Scan Progress" Style="{StaticResource CardGroup}">
                                 <StackPanel>
                                     <TextBlock x:Name="ProgressText" Text="Pick a drive and press Scan" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6" FontWeight="Normal"/>
-                                    <ProgressBar x:Name="ScanProgressBar" Height="8" Minimum="0" Maximum="100" Value="0" Foreground="{StaticResource PrimaryButtonBrush}"/>
+                                    <ProgressBar x:Name="ScanProgressBar" Height="8" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource PrimaryButtonBrush}"/>
                                 </StackPanel>
                             </GroupBox>
 
                             <GroupBox Header="Stats" Style="{StaticResource CardGroup}">
                                 <StackPanel>
-                                    <Border Background="#E8F0FE" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
-                                        <TextBlock><Run Foreground="#0078D4" FontWeight="SemiBold">Scanned: </Run><Run x:Name="FilesScannedText">0</Run></TextBlock>
+                                    <Border Background="{DynamicResource InfoPillBackgroundBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                                        <TextBlock Foreground="{DynamicResource TextPrimaryBrush}"><Run Foreground="{DynamicResource InfoPillForegroundBrush}" FontWeight="SemiBold">Scanned: </Run><Run x:Name="FilesScannedText">0</Run></TextBlock>
                                     </Border>
-                                    <Border Background="#F8F4E9" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
-                                        <TextBlock><Run Foreground="#8A6D3B" FontWeight="SemiBold">Candidates: </Run><Run x:Name="CandidatesText">0</Run></TextBlock>
+                                    <Border Background="{DynamicResource WarningPillBackgroundBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                                        <TextBlock Foreground="{DynamicResource TextPrimaryBrush}"><Run Foreground="{DynamicResource WarningPillForegroundBrush}" FontWeight="SemiBold">Candidates: </Run><Run x:Name="CandidatesText">0</Run></TextBlock>
                                     </Border>
-                                    <Border Background="#E8F8E8" CornerRadius="6" Padding="10,8">
-                                        <TextBlock><Run Foreground="#107C10" FontWeight="SemiBold">Selected: </Run><Run x:Name="SelectedText">0 B</Run></TextBlock>
+                                    <Border Background="{DynamicResource SuccessPillBackgroundBrush}" CornerRadius="6" Padding="10,8">
+                                        <TextBlock Foreground="{DynamicResource TextPrimaryBrush}"><Run Foreground="{DynamicResource SuccessPillForegroundBrush}" FontWeight="SemiBold">Selected: </Run><Run x:Name="SelectedText">0 B</Run></TextBlock>
                                     </Border>
                                 </StackPanel>
                             </GroupBox>
@@ -159,8 +160,8 @@
                             </GroupBox>
 
                             <StackPanel Margin="0,4,0,0">
-                                <Button x:Name="OpenLocationButton" Content="Open Location" Margin="0,0,0,8" Click="OpenLocationButton_Click" Style="{StaticResource ModernButton}" Background="#F0F2F5" HorizontalAlignment="Stretch"/>
-                                <Button x:Name="QuarantineManagerButton" Content="Quarantine Manager" Margin="0,0,0,8" Click="QuarantineManagerButton_Click" Style="{StaticResource ModernButton}" Background="#E8F0FE" Foreground="#0078D4" HorizontalAlignment="Stretch"/>
+                                <Button x:Name="OpenLocationButton" Content="Open Location" Margin="0,0,0,8" Click="OpenLocationButton_Click" Style="{StaticResource ModernButton}" HorizontalAlignment="Stretch"/>
+                                <Button x:Name="QuarantineManagerButton" Content="Quarantine Manager" Margin="0,0,0,8" Click="QuarantineManagerButton_Click" Style="{StaticResource ModernButton}" Background="{DynamicResource AccentSoftBackgroundBrush}" Foreground="{DynamicResource AccentSoftForegroundBrush}" HorizontalAlignment="Stretch"/>
                                 <Button x:Name="QuarantineButton" Content="Quarantine Selected" Margin="0,0,0,8" Click="QuarantineButton_Click" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch"/>
                                 <Button x:Name="PermanentDeleteButton" Content="Permanently Delete" Click="PermanentDeleteButton_Click" Style="{StaticResource DangerButton}" HorizontalAlignment="Stretch"/>
                             </StackPanel>
@@ -251,9 +252,9 @@
                                 </ComboBox>
                             </StackPanel>
                         </GroupBox>
-                        <GroupBox x:Name="AdvancedFormatGroup" Header="Advanced" Style="{StaticResource CardGroup}" BorderBrush="#FEDCDC">
+                        <GroupBox x:Name="AdvancedFormatGroup" Header="Advanced" Style="{StaticResource CardGroup}" BorderBrush="{DynamicResource DangerSoftBorderBrush}">
                             <StackPanel>
-                                <TextBlock Text="⚠️ Format Drive — DESTROYS ALL DATA" Foreground="{StaticResource DangerButtonBrush}" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                <TextBlock Text="⚠️ Format Drive — DESTROYS ALL DATA" Foreground="{DynamicResource DangerButtonBrush}" FontWeight="SemiBold" Margin="0,0,0,6"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
@@ -270,7 +271,7 @@
                         <TextBlock Text="DevClean v1.0 · Open core · No telemetry · Everything goes to quarantine first." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
                         <Button x:Name="SupportDeveloperButton" Content="☕ Support the Developer ($0.99)"
         Click="SupportDeveloperButton_Click" Style="{StaticResource ModernButton}"
-        Background="#FFF4E5" Foreground="#B36B00" Margin="0,0,0,16" HorizontalAlignment="Left"/>
+        Background="{DynamicResource DonateBackgroundBrush}" Foreground="{DynamicResource DonateForegroundBrush}" Margin="0,0,0,16" HorizontalAlignment="Left"/>
         <TextBlock Margin="0,6,0,0" FontSize="11" HorizontalAlignment="Center">
     <Hyperlink NavigateUri="https://gist.github.com/Anurag4975/1a06d055a9cfccebaf35462aeee10f40"
                RequestNavigate="PrivacyLink_RequestNavigate">

@@ -11,7 +11,6 @@ using DevClean.Models;
 using DevClean.Scanner;
 using DevClean.Settings;
 using DevClean.Smart;
-using System.Windows.Media;
 using Windows.Services.Store;   
 namespace DevClean;
 using System.Threading;
@@ -605,32 +604,28 @@ public partial class MainWindow : Window
         AppSettings.Instance.Save();
     }
 
+    // Theme.xaml's *first* merged dictionary is always the active color-token
+    // dictionary (Theme/Colors.Light.xaml or Theme/Colors.Dark.xaml — see
+    // Theme.xaml). Every brush every control template/style binds to via
+    // DynamicResource lives there, so swapping that one dictionary in one shot
+    // repaints the entire app — native WPF chrome included — instead of the
+    // old approach of patching seven hardcoded brushes by hand.
     private void ApplyTheme(bool dark)
-    {
-        var dict = Application.Current.Resources.MergedDictionaries.FirstOrDefault();
-        if (dict == null) return;
+{
+    var themeDictionary = Application.Current.Resources.MergedDictionaries.FirstOrDefault();
+    if (themeDictionary == null || themeDictionary.MergedDictionaries.Count == 0) return;
 
-        if (dark)
-        {
-            dict["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(28, 28, 30));
-            dict["CardBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(44, 44, 46));
-            dict["CardAltBrush"] = new SolidColorBrush(Color.FromRgb(58, 58, 60));
-            dict["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(240, 240, 242));
-            dict["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(170, 170, 178));
-            dict["BorderBrush"] = new SolidColorBrush(Color.FromRgb(58, 58, 60));
-            dict["TabActiveBrush"] = new SolidColorBrush(Color.FromRgb(20, 60, 100));
-        }
-        else
-        {
-            dict["AppBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(240, 242, 245));
-            dict["CardBackgroundBrush"] = new SolidColorBrush(Colors.White);
-            dict["CardAltBrush"] = new SolidColorBrush(Color.FromRgb(248, 249, 250));
-            dict["TextPrimaryBrush"] = new SolidColorBrush(Color.FromRgb(26, 26, 31));
-            dict["TextSecondaryBrush"] = new SolidColorBrush(Color.FromRgb(90, 92, 102));
-            dict["BorderBrush"] = new SolidColorBrush(Color.FromRgb(226, 229, 234));
-            dict["TabActiveBrush"] = new SolidColorBrush(Color.FromRgb(232, 240, 254));
-        }
+    var colorsUri = new Uri(
+        dark ? "pack://application:,,,/Theme/Colors.Dark.xaml" : "pack://application:,,,/Theme/Colors.Light.xaml",
+        UriKind.Absolute);
+
+    var freshColors = new ResourceDictionary { Source = colorsUri };
+    var activeColors = themeDictionary.MergedDictionaries[0];
+    foreach (var key in freshColors.Keys)
+    {
+        activeColors[key] = freshColors[key];
     }
+}
 
     private async void CheckWithAiButton_Click(object sender, RoutedEventArgs e)
     {

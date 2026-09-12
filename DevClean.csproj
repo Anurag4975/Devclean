@@ -40,7 +40,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\**\*" />
+    <!-- CopyToOutputDirectory is required so Assets/AppIcon.ico and AppIcon.png
+         actually land next to the exe for unpackaged/dev runs — the app's
+         "pack://siteoforigin:,,," references (window Icon, header logo) resolve
+         against the output directory, not the MSIX payload. Packaged/Store
+         builds already include Content items in the payload either way. -->
+    <Content Include="Assets\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
