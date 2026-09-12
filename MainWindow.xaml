@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:DevClean.Converters"
         Title="DevClean" Height="680" Width="1000" MinHeight="640" MinWidth="960"
-        Background="{StaticResource AppBackgroundBrush}"
+        Background="{DynamicResource AppBackgroundBrush}"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
@@ -33,15 +33,15 @@
                            Stretch="Uniform"/>
                 </Border>
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}">DevClean</TextBlock>
-                    <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}">Safe cleanup with undo</TextBlock>
+                    <TextBlock FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}">DevClean</TextBlock>
+                    <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">Safe cleanup with undo</TextBlock>
                 </StackPanel>
             </StackPanel>
 
             <!-- Drive + Actions -->
             <StackPanel Grid.Column="2" Orientation="Horizontal">
                 <ComboBox x:Name="DriveComboBox" MinWidth="180" Margin="0,0,10,0" FontSize="13"/>
-                <TextBlock Text="Free:" Margin="0,0,4,0" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                <TextBlock Text="Free:" Margin="0,0,4,0" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                 <TextBlock x:Name="FreeSpaceText" Text="—" Margin="0,0,10,0" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
                 <Button x:Name="ScanButton" Content="Scan" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="ScanButton_Click"/>
                 <Button x:Name="SmartCleanButton" Content="Smart Clean" Style="{StaticResource SuccessButton}" Margin="0,0,8,0" Click="SmartCleanButton_Click"/>
@@ -81,7 +81,7 @@
                             <ComboBox x:Name="SafetyFilter" MinWidth="120" Margin="0,0,16,0" FontSize="13" SelectionChanged="Filter_SelectionChanged"/>
                             <CheckBox x:Name="SelectAllCheckBox" Content="Select all safe" VerticalAlignment="Center" FontSize="13"
                                       Checked="SelectAllCheckBox_Checked" Unchecked="SelectAllCheckBox_Unchecked"/>
-                            <TextBlock x:Name="ResultCountText" Text="0 results" Margin="16,6,0,0" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock x:Name="ResultCountText" Text="0 results" Margin="16,6,0,0" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </StackPanel>
 
                         <ListView Grid.Row="1" x:Name="CandidateList" SelectionChanged="CandidateList_SelectionChanged">
@@ -123,7 +123,7 @@
                         <StackPanel>
                             <GroupBox Header="Scan Progress" Style="{StaticResource CardGroup}">
                                 <StackPanel>
-                                    <TextBlock x:Name="ProgressText" Text="Pick a drive and press Scan" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6" FontWeight="Normal"/>
+                                    <TextBlock x:Name="ProgressText" Text="Pick a drive and press Scan" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6" FontWeight="Normal"/>
                                     <ProgressBar x:Name="ScanProgressBar" Height="8" Minimum="0" Maximum="100" Value="0" Foreground="{StaticResource PrimaryButtonBrush}"/>
                                 </StackPanel>
                             </GroupBox>
@@ -145,16 +145,16 @@
                             <GroupBox Header="Details" Style="{StaticResource CardGroup}">
                                 <StackPanel>
                                     <TextBlock x:Name="DetailReasonText" TextWrapping="Wrap" FontSize="13" Text="Select an item to see why it's safe to clean."/>
-                                    <TextBlock x:Name="DetailExplanationText" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="DetailEvidenceText" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="DetailExplanationText" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="DetailEvidenceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
 
                                     <Separator Margin="0,10,0,10"/>
 
                                     <Button x:Name="CheckWithAiButton" Content="🤖 Check with AI" Click="CheckWithAiButton_Click"
                                             Style="{StaticResource SuccessButton}" HorizontalAlignment="Left" Padding="12,6"/>
                                     <TextBlock x:Name="AiFileVerdictText" TextWrapping="Wrap" FontSize="13" FontWeight="SemiBold" Margin="0,8,0,0"/>
-                                    <TextBlock x:Name="AiFileConsequenceText" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
-                                    <TextBlock x:Name="AiFileHowToText" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="AiFileConsequenceText" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="AiFileHowToText" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                                 </StackPanel>
                             </GroupBox>
 
@@ -191,7 +191,7 @@
                             </GridView>
                         </ListView.View>
                     </ListView>
-                    <TextBlock x:Name="AppsStatusText" Grid.Row="2" Margin="0,6,0,0" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Text="Uses each app's own uninstaller — safe and Store-compliant."/>
+                    <TextBlock x:Name="AppsStatusText" Grid.Row="2" Margin="0,6,0,0" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Text="Uses each app's own uninstaller — safe and Store-compliant."/>
                 </Grid>
             </TabItem>
 
@@ -201,7 +201,7 @@
                     <StackPanel>
                         <GroupBox Header="AI API Key" Style="{StaticResource CardGroup}">
                             <StackPanel>
-                                <TextBlock Text="Your key is saved locally and never shared. App sends a capped file list to the AI, then applies its recommendations." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                <TextBlock Text="Your key is saved locally and never shared. App sends a capped file list to the AI, then applies its recommendations." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                                 <PasswordBox x:Name="ApiKeyBox" FontSize="13" Padding="8,6"/>
                                 <Button x:Name="SaveKeyButton" Content="Save Key" Margin="0,8,0,0" Click="SaveKeyButton_Click" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"/>
                             </StackPanel>
@@ -209,8 +209,8 @@
                         <GroupBox Header="AI Analysis" Style="{StaticResource CardGroup}">
                             <StackPanel>
                                 <Button x:Name="AiAnalyzeButton" Content="🔍 Analyze Files with AI" Click="AiAnalyzeButton_Click" Style="{StaticResource SuccessButton}" Margin="0,0,0,10" FontSize="14" Padding="16,10" HorizontalAlignment="Left"/>
-                                <TextBlock x:Name="AiStatusText" Text="Click to send file list to the AI for cleanup recommendations." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock x:Name="AiSummaryText" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                <TextBlock x:Name="AiStatusText" Text="Click to send file list to the AI for cleanup recommendations." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock x:Name="AiSummaryText" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                             </StackPanel>
                         </GroupBox>
                         <GroupBox Header="AI Recommendations" Style="{StaticResource CardGroup}">
@@ -263,14 +263,20 @@
                                     <ComboBox x:Name="FormatDriveCombo" Grid.Column="0" MinWidth="120" FontSize="13"/>
                                     <Button x:Name="FormatButton" Grid.Column="2" Content="FORMAT" Click="FormatButton_Click" Style="{StaticResource DangerButton}" Margin="10,0,0,0"/>
                                 </Grid>
-                                <TextBlock Text="Not available in Microsoft Store builds." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,0"/>
+                                <TextBlock Text="Opens Windows Disk Management — Store-safe, no elevated format command." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,0,0"/>
                             </StackPanel>
                         </GroupBox>
                         <Button x:Name="SaveSettingsButton" Content="Save All Settings" Click="SaveSettingsButton_Click" Style="{StaticResource PrimaryButton}" Margin="0,0,0,16" HorizontalAlignment="Left"/>
-                        <TextBlock Text="DevClean v1.0 · Open core · No telemetry · Everything goes to quarantine first." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="DevClean v1.0 · Open core · No telemetry · Everything goes to quarantine first." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
                         <Button x:Name="SupportDeveloperButton" Content="☕ Support the Developer ($0.99)"
         Click="SupportDeveloperButton_Click" Style="{StaticResource ModernButton}"
         Background="#FFF4E5" Foreground="#B36B00" Margin="0,0,0,16" HorizontalAlignment="Left"/>
+        <TextBlock Margin="0,6,0,0" FontSize="11" HorizontalAlignment="Center">
+    <Hyperlink NavigateUri="https://gist.github.com/Anurag4975/1a06d055a9cfccebaf35462aeee10f40"
+               RequestNavigate="PrivacyLink_RequestNavigate">
+        Privacy Policy
+    </Hyperlink>
+</TextBlock>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

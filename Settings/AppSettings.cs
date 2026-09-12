@@ -27,6 +27,9 @@ public sealed class AppSettings
     /// <summary>Include modern-junk targets (Docker, WSL, package caches, etc.) in scans.</summary>
     public bool ScanModernJunk { get; set; } = true;
 
+    /// <summary>Whether the app should launch in dark mode. Persisted across restarts.</summary>
+    public bool IsDarkMode { get; set; } = false;
+
     private static string FilePath
     {
         get

@@ -1,41 +1,46 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-    <UseWPF>true</UseWPF>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <Platforms>AnyCPU</Platforms>
+  <OutputType>WinExe</OutputType>
+  <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+  <UseWPF>true</UseWPF>
+  <ImplicitUsings>enable</ImplicitUsings>
+  <Nullable>enable</Nullable>
 
-    <!-- Versioning (increment before each Microsoft Store submission) -->
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <Product>DevClean</Product>
-    <Company>DevClean</Company>
-    <Copyright>Copyright © 2026</Copyright>
-    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <!-- For direct (non-Store) downloads, set these to true when publishing:
-         <PublishSingleFile>true</PublishSingleFile>
-         <SelfContained>false</SelfContained>
-         <RuntimeIdentifier>win-x64</RuntimeIdentifier> -->
+  <Platforms>x64</Platforms>
+  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
 
-    <!-- STORE_BUILD compiles OUT the elevated "Format Drive" feature entirely (no code,
-         no button, no XAML-backed handler) so the Store binary never contains it.
-         Default is defined = Store-safe. To build the power-user/sideload version with
-         Format Drive included, pass: dotnet build -p:DefineConstants=PORTABLE_BUILD
-         which overrides this and is intentionally NOT the default. -->
-    <DefineConstants Condition="'$(DefineConstants)'==''">STORE_BUILD</DefineConstants>
-  </PropertyGroup>
+  <Version>1.0.0</Version>
+  <AssemblyVersion>1.0.0.0</AssemblyVersion>
+  <FileVersion>1.0.0.0</FileVersion>
+  <SelfContained>true</SelfContained>
+  <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+  <Product>DevClean</Product>
+  <Company>Anurag Tiwari</Company>
+  <Copyright>Copyright © 2026 Anurag Tiwari</Copyright>
+
+  <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+
+  <EnableMsixTooling>true</EnableMsixTooling>
+
+  <DefineConstants Condition="'$(DefineConstants)'==''">STORE_BUILD</DefineConstants>
+</PropertyGroup>
 
   <ItemGroup>
-    <!-- External, community-extendable safety rules. Copied next to the .exe.
-         Condition prevents build errors if the Rules folder is ever missing
-         (built-in rules still apply). -->
     <Content Include="Rules\**\*.json"
              Condition="Exists('Rules')"
              CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools.WinApp"
+                      Version="0.6.1" />
+    <PackageReference Include="Microsoft.WindowsAppSDK"
+                      Version="2.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\**\*" />
   </ItemGroup>
 
 </Project>

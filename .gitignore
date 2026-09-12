@@ -55,3 +55,6 @@ $RECYCLE.BIN/
 
 # DevClean own data (never commit user quarantine or settings)
 .DevClean/
+
+# Development certificate
+devcert.pfx

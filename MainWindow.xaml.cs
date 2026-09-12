@@ -62,8 +62,10 @@ public partial class MainWindow : Window
         if (FormatDriveCombo.Items.Count > 0) FormatDriveCombo.SelectedIndex = 0;
 #if STORE_BUILD
         // Store/MSIX apps run sandboxed and cannot elevate (Verb="runas" will simply fail
-        // certification and/or fail at runtime), so this entire destructive feature is both
-        // compiled out below and hidden here as defense in depth.
+        // certification and/or fail at runtime), so this destructive feature is hidden here.
+        // The Format button now opens Windows Disk Management, which is Store-safe, so the
+        // group is still hidden in Store builds to keep the UI simple, but no longer because
+        // the underlying code is dangerous.
         AdvancedFormatGroup.Visibility = Visibility.Collapsed;
 #endif
     }
@@ -490,6 +492,12 @@ public partial class MainWindow : Window
         RetentionDaysBox.Text = AppSettings.Instance.QuarantineRetentionDays.ToString();
         AutoPurgeCheck.IsChecked = AppSettings.Instance.AutoPurgeExpiredQuarantine;
         SimpleModeCheck.IsChecked = AppSettings.Instance.SimpleMode;
+
+        // Restore the user's last theme choice.
+        _isDarkMode = AppSettings.Instance.IsDarkMode;
+        ApplyTheme(_isDarkMode);
+        ThemeToggleBtn.Content = _isDarkMode ? "☀️" : "🌙";
+        ThemeBox.SelectedIndex = _isDarkMode ? 1 : 0;
     }
 
     private async void SaveSettingsButton_Click(object sender, RoutedEventArgs e)
@@ -511,26 +519,22 @@ public partial class MainWindow : Window
 
     private void FormatButton_Click(object sender, RoutedEventArgs e)
     {
-#if STORE_BUILD
-        // Compiled out entirely in the Store build: no elevated process launch exists
-        // in this binary at all, not merely a hidden button. Unreachable anyway since
-        // AdvancedFormatGroup is collapsed, but kept as a safety net in case of future
-        // XAML changes that re-expose the button.
-        MessageBox.Show("Format Drive isn't available in this build. Use Windows' built-in Disk Management instead.");
-#else
         if (FormatDriveCombo.SelectedItem is not string drive) return;
-        string letter = drive.TrimEnd('\\', ':');
-        if (MessageBox.Show(
-            $"WARNING: Formatting {drive} will PERMANENTLY DESTROY ALL DATA on it.\n\n" +
-            $"This cannot be undone. Windows will ask you to confirm. Continue?",
-            "FORMAT DRIVE — DANGER", MessageBoxButton.YesNo, MessageBoxImage.Stop) != MessageBoxResult.Yes) return;
+
+        // Microsoft Store apps cannot shell out to format.com with an elevation request —
+        // that is a certification blocker. Instead we hand off to Windows' own Disk
+        // Management, which handles the elevation prompt and confirmation itself and needs
+        // no special capability here. This is safe for both the Store and sideload builds,
+        // so no #if STORE_BUILD guard is needed.
+        MessageBox.Show(
+            $"For your safety, DevClean doesn't format drives directly.\n\n" +
+            $"Opening Disk Management — right-click {drive} there and choose \"Format...\".",
+            "Open Disk Management", MessageBoxButton.OK, MessageBoxImage.Information);
         try
         {
-            Process.Start(new ProcessStartInfo("cmd.exe", $"/k format {letter}: /Q /X")
-            { UseShellExecute = true, Verb = "runas" });
+            Process.Start(new ProcessStartInfo("diskmgmt.msc") { UseShellExecute = true });
         }
-        catch (Exception ex) { MessageBox.Show("Could not start format: " + ex.Message); }
-#endif
+        catch (Exception ex) { MessageBox.Show("Could not open Disk Management: " + ex.Message); }
     }
 
     // =========================================================
@@ -581,6 +585,7 @@ public partial class MainWindow : Window
         ApplyTheme(_isDarkMode);
         ThemeToggleBtn.Content = _isDarkMode ? "☀️" : "🌙";
         ThemeBox.SelectedIndex = _isDarkMode ? 1 : 0;
+        PersistThemeChoice();
     }
 
     private void ThemeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -590,7 +595,14 @@ public partial class MainWindow : Window
             _isDarkMode = txt == "Dark";
             ApplyTheme(_isDarkMode);
             ThemeToggleBtn.Content = _isDarkMode ? "☀️" : "🌙";
+            PersistThemeChoice();
         }
+    }
+
+    private void PersistThemeChoice()
+    {
+        AppSettings.Instance.IsDarkMode = _isDarkMode;
+        AppSettings.Instance.Save();
     }
 
     private void ApplyTheme(bool dark)
@@ -684,5 +696,11 @@ public partial class MainWindow : Window
                 }
                     finally { SupportDeveloperButton.IsEnabled = true; }
         }
-}   
 
+        private void PrivacyLink_RequestNavigate(object sender,
+    System.Windows.Navigation.RequestNavigateEventArgs e)
+{
+    Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+    e.Handled = true;
+}
+}
