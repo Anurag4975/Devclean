@@ -58,3 +58,4 @@ $RECYCLE.BIN/
 
 # Development certificate
 devcert.pfx
+devclean-ui-darkmode-fix.patch

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\devclean\\DevClean.csproj": {}
+    "D:\\DevClean\\DevClean.csproj": {}
   },
   "projects": {
-    "D:\\devclean\\DevClean.csproj": {
+    "D:\\DevClean\\DevClean.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\devclean\\DevClean.csproj",
+        "projectUniqueName": "D:\\DevClean\\DevClean.csproj",
         "projectName": "DevClean",
-        "projectPath": "D:\\devclean\\DevClean.csproj",
+        "projectPath": "D:\\DevClean\\DevClean.csproj",
         "packagesPath": "C:\\Users\\raaz4\\.nuget\\packages\\",
-        "outputPath": "D:\\devclean\\obj\\",
+        "outputPath": "D:\\DevClean\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\raaz4\\AppData\\Roaming\\NuGet\\NuGet.Config"
