@@ -126,18 +126,27 @@ public partial class MainWindow : Window
             FilesScannedText.Text = files.Count.ToString("N0");
 
             ProgressText.Text = "Analyzing safety…";
-            List<CleanupCandidate> candidates = _candidateDetector.FindCandidates(files)
-                .Concat(_candidateDetector.FindFolderCandidates(files))
-                .OrderByDescending(x => x.PriorityScore).ThenByDescending(x => x.Size).ToList();
-            CandidatesText.Text = candidates.Count.ToString("N0");
-
             CancellationToken token = _cancellationSource.Token;
-            var results = new SafetyAnalysis[candidates.Count];
-            int processedCount = 0;
 
-            await Task.Run(() =>
+            // Everything below — detection, sorting, safety analysis, and VM
+            // construction — runs on background threads. On C:\ this is tens of
+            // thousands of candidates, and doing any of it on the UI thread is
+            // what froze the window at "Analyzing safety…".
+            var (candidates, vms) = await Task.Run(() =>
             {
-                Parallel.For(0, candidates.Count,
+                List<CleanupCandidate> cands = _candidateDetector.FindCandidates(files)
+                    .Concat(_candidateDetector.FindFolderCandidates(files))
+                    .AsParallel()
+                    .WithCancellation(token)
+                    .WithDegreeOfParallelism(Environment.ProcessorCount)
+                    .OrderByDescending(x => x.PriorityScore)
+                    .ThenByDescending(x => x.Size)
+                    .ToList();
+
+                var resultArr = new SafetyAnalysis[cands.Count];
+                int processed = 0;
+
+                Parallel.For(0, cands.Count,
                     new ParallelOptions
                     {
                         CancellationToken = token,
@@ -145,16 +154,25 @@ public partial class MainWindow : Window
                     },
                     i =>
                     {
-                        results[i] = _analyzer.AnalyzeAsync(candidates[i].File, token).GetAwaiter().GetResult();
-
-                        int done = Interlocked.Increment(ref processedCount);
+                        resultArr[i] = _analyzer.AnalyzeAsync(cands[i].File, token).GetAwaiter().GetResult();
+                        int done = Interlocked.Increment(ref processed);
                         if (done % 250 == 0)
-                            Dispatcher.Invoke(() => ProgressText.Text = $"Analyzing… {done:N0}/{candidates.Count:N0}");
+                            Dispatcher.Invoke(() => ProgressText.Text = $"Analyzing… {done:N0}/{cands.Count:N0}");
                     });
+
+                var vmList = new List<CandidateViewModel>(cands.Count);
+                for (int i = 0; i < cands.Count; i++)
+                    vmList.Add(new CandidateViewModel(cands[i], resultArr[i]));
+
+                return (cands, vmList);
             }, token);
 
-            for (int i = 0; i < candidates.Count; i++)
-                _allCandidates.Add(new CandidateViewModel(candidates[i], results[i]));
+            CandidatesText.Text = candidates.Count.ToString("N0");
+
+            // Single bulk update — the Add loop below runs before the collection
+            // is bound to the ListView, so no layout passes fire here.
+            _allCandidates.Clear();
+            foreach (var vm in vms) _allCandidates.Add(vm);
 
             PopulateCategoryFilter();
             ApplyFilters();
@@ -227,7 +245,11 @@ public partial class MainWindow : Window
             SafetyLevel lvl = saf switch { "Safe" => SafetyLevel.Safe, "Review" => SafetyLevel.Review, "Caution" => SafetyLevel.Caution, _ => SafetyLevel.DoNotDelete };
             q = q.Where(x => x.Analysis.Level == lvl);
         }
-        foreach (var c in q.OrderByDescending(x => x.Size)) _visibleCandidates.Add(c);
+        // Materialize the sort before touching the bound collection, so the LINQ
+        // work is done up-front rather than interleaved with per-item notifications.
+        var sorted = q.OrderByDescending(x => x.Size).ToList();
+        _visibleCandidates.Clear();
+        foreach (var c in sorted) _visibleCandidates.Add(c);
         ResultCountText.Text = $"{_visibleCandidates.Count:N0} results";
     }
 

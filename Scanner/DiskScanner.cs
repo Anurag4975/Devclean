@@ -113,13 +113,48 @@ public class DiskScanner
         try { roots = Directory.EnumerateDirectories(drivePath).Where(d => !IsDevCleanPath(d) && !IsProtectedSystemPath(d)).ToArray(); }
         catch { return []; }
 
-        var options = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = cancellationToken };
-        try
+        if (roots.Length == 0) return [];
+
+        // Bounded worker pool over a shared queue instead of recursive Parallel.ForEach.
+        // The old approach called Parallel.ForEach again inside every directory's own
+        // Parallel.ForEach body, so each level of the tree blocked its worker thread
+        // waiting on a fresh wave of child tasks needing their own ThreadPool threads.
+        // On a deep/wide tree (Program Files, AppData, nested SDK/package caches — far
+        // more common on C:\ than on a shallow data drive) that fan-out can exceed what
+        // the ThreadPool's throttled thread-injection rate can keep up with, so the scan
+        // appears to hang rather than actually deadlocking. A fixed number of long-running
+        // workers pulling from one queue keeps concurrency flat no matter how deep the
+        // tree goes.
+        var pending = new ConcurrentQueue<string>(roots);
+        int[] outstanding = { roots.Length }; // directories discovered but not yet fully processed
+
+        int workerCount = Math.Max(2, Environment.ProcessorCount);
+        var workers = new Task[workerCount];
+        for (int w = 0; w < workerCount; w++)
         {
-            Parallel.ForEach(roots, options, root =>
-                ScanFilesRecursiveParallel(root, files, counter, filesScannedProgress, cancellationToken));
+            workers[w] = Task.Run(() =>
+            {
+                var spin = new SpinWait();
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    if (pending.TryDequeue(out string? dir))
+                    {
+                        try { ScanOneDirectory(dir, files, counter, filesScannedProgress, pending, outstanding, cancellationToken); }
+                        catch (OperationCanceledException) { }
+                        finally { Interlocked.Decrement(ref outstanding[0]); }
+                        spin.Reset();
+                    }
+                    else
+                    {
+                        if (Volatile.Read(ref outstanding[0]) <= 0) break;
+                        spin.SpinOnce();
+                    }
+                }
+            }, cancellationToken);
         }
-        catch (OperationCanceledException) { }
+
+        try { Task.WaitAll(workers); }
+        catch (AggregateException) { /* cancellation surfaces via the token the caller already holds */ }
 
         return files.ToList();
     }
@@ -134,9 +169,14 @@ public class DiskScanner
     public Task<List<FileItem>> ScanFilesAsync(string drivePath, CancellationToken cancellationToken = default)
         => ScanFilesAsync(drivePath, null, cancellationToken);
 
-    private static void ScanFilesRecursiveParallel(
+    /// <summary>Processes the files directly inside one directory, and enqueues its non-container
+    /// subdirectories as new work items for the shared worker pool. <paramref name="outstanding"/>
+    /// is incremented before a subdirectory is enqueued (not after it's dequeued), so no worker
+    /// ever sees an empty queue and exits while a sibling worker is still about to add more work.</summary>
+    private static void ScanOneDirectory(
         string path, ConcurrentBag<FileItem> files,
         long[] counter, Action<long>? progress,
+        ConcurrentQueue<string> pending, int[] outstanding,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -176,44 +216,46 @@ public class DiskScanner
             string[] subs;
             try { subs = Directory.EnumerateDirectories(path).Where(d => !IsDevCleanPath(d) && !IsProtectedSystemPath(d)).ToArray(); }
             catch { return; }
-            Parallel.ForEach(subs, new ParallelOptions { CancellationToken = ct, MaxDegreeOfParallelism = 4 },
-                sub =>
+
+            foreach (string sub in subs)
+            {
+                ct.ThrowIfCancellationRequested();
+                try
                 {
-                    try
+                    DirectoryInfo sdi = new(sub);
+                    if ((sdi.Attributes & FileAttributes.ReparsePoint) != 0) continue;
+
+                    if (IsContainerFolder(sub))
                     {
-                        DirectoryInfo sdi = new(sub);
-                        if ((sdi.Attributes & FileAttributes.ReparsePoint) != 0) return;
-
-                        if (IsContainerFolder(sub))
+                        // Roll the whole folder into one aggregate-sized entry instead of
+                        // enumerating every file inside it — node_modules, .git, venv, etc.
+                        // are already treated as a single candidate downstream, so per-file
+                        // detail inside them buys nothing but scan time.
+                        long rolledUpSize = GetFolderSizeStatic(sub, ct);
+                        files.Add(new FileItem
                         {
-                            // Roll the whole folder into one aggregate-sized entry instead of
-                            // enumerating every file inside it — node_modules, .git, venv, etc.
-                            // are already treated as a single candidate downstream, so per-file
-                            // detail inside them buys nothing but scan time.
-                            long rolledUpSize = GetFolderSizeStatic(sub, ct);
-                            files.Add(new FileItem
-                            {
-                                Path = sub,
-                                ParentDirectory = sdi.Parent?.FullName ?? string.Empty,
-                                Name = sdi.Name,
-                                Size = rolledUpSize,
-                                Extension = string.Empty,
-                                Created = sdi.CreationTime,
-                                LastModified = sdi.LastWriteTime,
-                                LastAccessed = sdi.LastAccessTime,
-                                IsHidden = (sdi.Attributes & FileAttributes.Hidden) != 0,
-                                IsSystem = (sdi.Attributes & FileAttributes.System) != 0
-                            });
-                            long c2 = Interlocked.Increment(ref counter[0]);
-                            if (c2 % 500 == 0) progress?.Invoke(c2);
-                            return;
-                        }
-
-                        ScanFilesRecursiveParallel(sub, files, counter, progress, ct);
+                            Path = sub,
+                            ParentDirectory = sdi.Parent?.FullName ?? string.Empty,
+                            Name = sdi.Name,
+                            Size = rolledUpSize,
+                            Extension = string.Empty,
+                            Created = sdi.CreationTime,
+                            LastModified = sdi.LastWriteTime,
+                            LastAccessed = sdi.LastAccessTime,
+                            IsHidden = (sdi.Attributes & FileAttributes.Hidden) != 0,
+                            IsSystem = (sdi.Attributes & FileAttributes.System) != 0
+                        });
+                        long c2 = Interlocked.Increment(ref counter[0]);
+                        if (c2 % 500 == 0) progress?.Invoke(c2);
+                        continue;
                     }
-                    catch (OperationCanceledException) { }
-                    catch { }
-                });
+
+                    Interlocked.Increment(ref outstanding[0]);
+                    pending.Enqueue(sub);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch { }
+            }
         }
         catch (OperationCanceledException) { throw; }
         catch { }
